@@ -29,7 +29,13 @@ body{font-family:'Poppins',system-ui,sans-serif;background:var(--bg);color:var(-
   content:'';position:absolute;inset:0;
   background:radial-gradient(ellipse at 30% 50%,rgba(255,255,255,.07) 0%,transparent 60%);
 }
-.header-logo{height:48px;object-fit:contain;position:relative;z-index:1;filter:drop-shadow(0 2px 10px rgba(0,0,0,.5))}
+.header-logo-wrap{
+  background:#fff;border-radius:14px;padding:10px 22px;
+  display:inline-flex;align-items:center;justify-content:center;
+  position:relative;z-index:1;
+  box-shadow:0 4px 20px rgba(0,0,0,.35);
+}
+.header-logo{height:42px;object-fit:contain;display:block}
 .header-title{font-size:1.25rem;font-weight:700;position:relative;z-index:1;margin-top:10px;letter-spacing:.4px;text-align:center}
 .header-sub{font-size:.78rem;opacity:.75;margin-top:3px;position:relative;z-index:1;text-align:center}
 
@@ -256,7 +262,9 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
 
 <!-- HEADER -->
 <div class="header">
-  <img src="logo-pdc-avon.png" alt="PDC | Avon" class="header-logo">
+  <div class="header-logo-wrap">
+    <img src="logo-pdc-avon.png" alt="PDC | Avon" class="header-logo">
+  </div>
   <div class="header-title">🧾 Confirmación de Boletas</div>
   <div class="header-sub">Sistema de validación bancaria · Avon CARD · Grupo PDC</div>
 </div>
