@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Confirmación de Boletas · Avon CARD · Grupo PDC</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0F0E1A;--bg2:#1A1830;--surface:#1E1B36;--surface2:#28244A;
+  --border:#2E2A52;--text:#E8E6F0;--text-muted:#9B97B8;
+  --avon:#E91E63;--avon-deep:#C2185B;--pdc:#0A2472;--gold:#F5A623;
+  --success:#22c55e;--success-bg:#052e16;--success-border:#166534;
+  --danger:#ef4444;--danger-bg:#2d0a0a;--danger-border:#7f1d1d;
+  --warn:#F5A623;--warn-bg:#1a1200;--warn-border:#78350f;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:'Poppins',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+
+/* ── HEADER ── */
+.header{
+  background:linear-gradient(135deg,#C2185B 0%,#0A2472 100%);
+  padding:22px 24px 20px;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;position:relative;overflow:hidden;flex-shrink:0;
+}
+.header::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 30% 50%,rgba(255,255,255,.07) 0%,transparent 60%);
+}
+.header-logo{height:48px;object-fit:contain;position:relative;z-index:1;filter:drop-shadow(0 2px 10px rgba(0,0,0,.5))}
+.header-title{font-size:1.25rem;font-weight:700;position:relative;z-index:1;margin-top:10px;letter-spacing:.4px;text-align:center}
+.header-sub{font-size:.78rem;opacity:.75;margin-top:3px;position:relative;z-index:1;text-align:center}
+
+/* ── NAV TABS ── */
+.nav-tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.nav-tabs::-webkit-scrollbar{display:none}
+.tab{
+  flex:1;min-width:120px;padding:13px 10px;text-align:center;cursor:pointer;
+  font-size:.8rem;font-weight:600;color:var(--text-muted);
+  border-bottom:3px solid transparent;transition:all .2s;
+  display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;
+}
+.tab.active{color:var(--avon);border-bottom-color:var(--avon);background:rgba(233,30,99,.06)}
+.tab:hover:not(.active){color:var(--text);background:rgba(255,255,255,.04)}
+.badge{background:var(--avon);color:#fff;border-radius:20px;font-size:10px;padding:1px 6px;font-weight:700;display:none}
+.badge-gold{background:var(--gold);color:#1a0f00}
+
+/* ── VIEWS ── */
+.main{flex:1;overflow-y:auto;padding:20px;max-width:700px;margin:0 auto;width:100%}
+.view{display:none}
+.view.active{display:block}
+
+/* ── FORM CARD ── */
+.form-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px}
+.card-heading{font-size:.72rem;font-weight:700;color:var(--avon);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:7px}
+.field{margin-bottom:16px}
+.field:last-child{margin-bottom:0}
+.label{font-size:.78rem;color:var(--text-muted);margin-bottom:6px;font-weight:600;display:flex;align-items:center;gap:6px}
+.req{color:var(--avon);font-size:.9em}
+.opt-tag{font-size:.65rem;background:var(--surface2);color:var(--text-muted);padding:1px 8px;border-radius:20px;font-weight:400;border:1px solid var(--border)}
+input[type=text],input[type=email],input[type=number],input[type=date],select,textarea{
+  width:100%;padding:10px 13px;background:var(--bg2);border:1px solid var(--border);
+  border-radius:10px;font-size:.88rem;font-family:'Poppins',sans-serif;
+  color:var(--text);transition:border .2s;
+}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--avon);box-shadow:0 0 0 3px rgba(233,30,99,.1)}
+input::placeholder,textarea::placeholder{color:var(--text-muted)}
+
+.radio-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.radio-opt{
+  display:flex;align-items:center;gap:10px;padding:11px 14px;
+  border:1px solid var(--border);border-radius:12px;cursor:pointer;
+  transition:all .2s;background:var(--bg2);
+}
+.radio-opt input{accent-color:var(--avon);width:15px;height:15px;flex-shrink:0}
+.radio-opt:hover{border-color:var(--avon);background:rgba(233,30,99,.06)}
+.radio-opt.selected{border-color:var(--avon);background:rgba(233,30,99,.1)}
+.radio-label{font-size:.85rem;font-weight:600}
+.radio-sub{font-size:.7rem;color:var(--text-muted);margin-top:1px}
+
+/* ── UPLOAD ── */
+.upload-zone{
+  border:2px dashed var(--border);border-radius:12px;padding:26px 16px;
+  text-align:center;cursor:pointer;transition:all .2s;background:var(--bg2);
+  position:relative;
+}
+.upload-zone:hover,.upload-zone.dragover{border-color:var(--avon);background:rgba(233,30,99,.05)}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-icon{font-size:2rem;margin-bottom:6px}
+.upload-text{font-size:.85rem;color:var(--text-muted)}
+.upload-hint{font-size:.72rem;color:var(--text-muted);margin-top:3px;opacity:.7}
+.upload-preview{
+  margin-top:12px;border-radius:10px;overflow:hidden;border:1px solid var(--border);
+  background:var(--bg2);display:none;align-items:center;justify-content:center;max-height:220px;
+}
+.upload-preview img{max-width:100%;max-height:220px;object-fit:contain;display:block}
+.file-chip{
+  display:none;align-items:center;gap:8px;margin-top:9px;
+  padding:7px 12px;background:rgba(233,30,99,.1);border:1px solid rgba(233,30,99,.3);
+  border-radius:8px;font-size:.78rem;color:var(--avon);word-break:break-all;
+}
+
+/* ── BUTTONS ── */
+.btn-primary{
+  width:100%;padding:13px;
+  background:linear-gradient(135deg,var(--avon),var(--avon-deep));
+  color:#fff;border:none;border-radius:12px;font-size:.92rem;font-weight:700;
+  cursor:pointer;font-family:'Poppins',sans-serif;
+  transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;
+  letter-spacing:.3px;
+}
+.btn-primary:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 8px 24px rgba(233,30,99,.3)}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* ── FORM SUCCESS ── */
+.form-success{
+  background:var(--success-bg);border:1px solid var(--success-border);
+  border-radius:12px;padding:13px 16px;color:var(--success);
+  font-size:.83rem;font-weight:500;display:none;align-items:center;gap:10px;margin-top:13px;
+}
+.form-success.show{display:flex}
+
+/* ── TOAST ── */
+.toast-wrap{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;max-width:320px}
+.toast{
+  background:var(--surface2);border:1px solid var(--border);border-radius:14px;
+  padding:12px 16px;font-size:.82rem;font-weight:500;
+  display:flex;align-items:flex-start;gap:10px;pointer-events:auto;
+  box-shadow:0 8px 32px rgba(0,0,0,.6);animation:toastIn .3s ease;
+}
+.toast.success{border-color:var(--success-border);background:#0d1f17}
+.toast.info{border-color:#1e3a5f;background:#0a1929}
+.toast.warn{border-color:var(--warn-border);background:var(--warn-bg)}
+.toast-icon{font-size:1.3rem;flex-shrink:0}
+.toast-title{font-weight:700;font-size:.84rem;margin-bottom:2px}
+.toast-msg{color:var(--text-muted);font-size:.78rem;line-height:1.4}
+@keyframes toastIn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{from{opacity:1}to{opacity:0;transform:translateX(24px)}}
+
+/* ── STATS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 10px;text-align:center}
+.stat-val{font-size:1.7rem;font-weight:800;line-height:1}
+.stat-val.pend{color:var(--warn)}
+.stat-val.conf{color:var(--success)}
+.stat-val.rej{color:var(--danger)}
+.stat-val.tot{color:var(--avon)}
+.stat-lbl{font-size:.65rem;color:var(--text-muted);font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-top:4px}
+
+/* ── FILTERS ── */
+.filter-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.filter-btn{
+  padding:6px 14px;border-radius:20px;border:1px solid var(--border);
+  background:transparent;cursor:pointer;font-size:.76rem;color:var(--text-muted);
+  font-family:'Poppins',sans-serif;font-weight:600;transition:all .2s;
+}
+.filter-btn.active{background:var(--avon);border-color:var(--avon);color:#fff}
+.filter-btn:hover:not(.active){border-color:var(--avon);color:var(--avon)}
+
+/* ── BOLETA CARD ── */
+.boleta-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;margin-bottom:10px;overflow:hidden;
+  transition:border-color .2s;cursor:pointer;
+}
+.boleta-card:hover{border-color:#3d3870}
+.boleta-card.expanded{border-color:rgba(233,30,99,.45)}
+.boleta-header{display:flex;align-items:center;gap:10px;padding:14px 16px}
+.bank-badge{padding:3px 10px;border-radius:20px;font-size:.67rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;flex-shrink:0;white-space:nowrap}
+.bank-occ{background:rgba(10,36,114,.4);color:#93b4ff;border:1px solid rgba(80,120,255,.3)}
+.bank-atl{background:rgba(5,46,22,.5);color:#4ade80;border:1px solid rgba(22,101,52,.4)}
+.boleta-info{flex:1;min-width:0}
+.boleta-rep{font-size:.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.boleta-meta{font-size:.72rem;color:var(--text-muted);margin-top:2px}
+.boleta-right{text-align:right;flex-shrink:0}
+.boleta-amount{font-size:1rem;font-weight:700;color:var(--avon)}
+.status-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.65rem;font-weight:700;margin-top:3px;letter-spacing:.3px;white-space:nowrap}
+.st-pending{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border)}
+.st-confirmed{background:var(--success-bg);color:var(--success);border:1px solid var(--success-border)}
+.st-rejected{background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border)}
+.chev{font-size:1rem;color:var(--text-muted);transition:transform .25s;flex-shrink:0;margin-left:4px}
+.chev.open{transform:rotate(180deg)}
+
+.boleta-body{display:none;border-top:1px solid var(--border);padding:14px 16px}
+.boleta-body.open{display:block}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.d-lbl{font-size:.65rem;color:var(--text-muted);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px}
+.d-val{font-size:.84rem;font-weight:500}
+.comprobante-wrap{
+  border-radius:10px;overflow:hidden;border:1px solid var(--border);
+  background:var(--bg2);display:flex;align-items:center;justify-content:center;
+  min-height:100px;margin-bottom:12px;cursor:zoom-in;
+}
+.comprobante-wrap img{max-width:100%;max-height:280px;object-fit:contain;display:block}
+.no-img{padding:20px;text-align:center;color:var(--text-muted);font-size:.82rem}
+.action-row{display:flex;gap:8px;flex-wrap:wrap}
+.btn-confirm,.btn-reject,.btn-capture{
+  padding:9px 15px;border-radius:10px;font-size:.8rem;font-weight:600;
+  cursor:pointer;font-family:'Poppins',sans-serif;
+  display:flex;align-items:center;gap:6px;transition:all .2s;
+}
+.btn-confirm{border:1px solid var(--success-border);background:var(--success-bg);color:var(--success)}
+.btn-confirm:hover{background:rgba(34,197,94,.18);transform:translateY(-1px)}
+.btn-reject{border:1px solid var(--danger-border);background:var(--danger-bg);color:var(--danger)}
+.btn-reject:hover{background:rgba(239,68,68,.18);transform:translateY(-1px)}
+.btn-capture{border:1px solid var(--border);background:var(--surface2);color:var(--text);position:relative;overflow:hidden}
+.btn-capture:hover{border-color:var(--avon);color:var(--avon)}
+.btn-capture input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.action-hint{font-size:.72rem;color:var(--text-muted);margin-top:7px;display:flex;align-items:center;gap:5px}
+.capture-preview{
+  display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:10px;
+  background:var(--success-bg);border:1px solid var(--success-border);
+  font-size:.78rem;color:var(--success);margin-top:9px;
+}
+.capture-preview img{width:38px;height:38px;object-fit:cover;border-radius:6px;border:1px solid var(--success-border);flex-shrink:0}
+
+/* ── NOTIF ── */
+.notif-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;margin-bottom:16px}
+.notif-heading{font-size:.72rem;font-weight:700;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-bottom:14px}
+.notif-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:.8rem}
+.notif-item:last-child{border-bottom:none;padding-bottom:0}
+.nd{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.nd-new{background:var(--avon)}
+.nd-conf{background:var(--success)}
+.nd-rej{background:var(--danger)}
+.notif-text{color:var(--text-muted);line-height:1.5;flex:1}
+.notif-text strong{color:var(--text)}
+.notif-time{font-size:.68rem;color:var(--text-muted);padding-left:8px;flex-shrink:0;white-space:nowrap}
+.btn-clear{background:transparent;border:1px solid var(--border);color:var(--text-muted);padding:7px 16px;border-radius:8px;cursor:pointer;font-family:'Poppins',sans-serif;font-size:.75rem;transition:all .2s}
+.btn-clear:hover{border-color:var(--danger);color:var(--danger)}
+
+/* ── EMPTY ── */
+.empty-state{text-align:center;padding:36px 16px;color:var(--text-muted)}
+.empty-icon{font-size:2.2rem;margin-bottom:8px;display:block}
+
+/* ── LIGHTBOX ── */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9998;display:none;align-items:center;justify-content:center;padding:20px;cursor:zoom-out}
+.lightbox.open{display:flex}
+.lightbox img{max-width:100%;max-height:90vh;object-fit:contain;border-radius:10px;box-shadow:0 0 80px rgba(0,0,0,.8)}
+
+/* ── RESPONSIVE ── */
+@media(max-width:580px){
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .radio-grid{grid-template-columns:1fr}
+  .detail-grid{grid-template-columns:1fr}
+  .action-row{flex-direction:column}
+  .action-row .btn-confirm,.action-row .btn-reject,.action-row .btn-capture{width:100%;justify-content:center}
+  .header-title{font-size:1.05rem}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <img src="logo-pdc-avon.png" alt="PDC | Avon" class="header-logo">
+  <div class="header-title">🧾 Confirmación de Boletas</div>
+  <div class="header-sub">Sistema de validación bancaria · Avon CARD · Grupo PDC</div>
+</div>
+
+<!-- NAV TABS -->
+<div class="nav-tabs">
+  <div class="tab active" id="tab-form" onclick="switchTab('form')">
+    📤 Solicitud
+  </div>
+  <div class="tab" id="tab-panel" onclick="switchTab('panel')">
+    ✅ Gestión
+    <span class="badge" id="badge-pend"></span>
+  </div>
+  <div class="tab" id="tab-notif" onclick="switchTab('notif')">
+    🔔 Alertas
+    <span class="badge badge-gold" id="badge-notif"></span>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <img id="lb-img" src="" alt="Comprobante ampliado">
+</div>
+
+<!-- ═══════════════ FORM ═══════════════ -->
+<div class="main">
+<div class="view active" id="view-form">
+
+  <div class="form-card">
+    <div class="card-heading">📋 Datos de la boleta</div>
+
+    <div class="field">
+      <div class="label">Banco de procedencia <span class="req">*</span></div>
+      <div class="radio-grid">
+        <label class="radio-opt" id="opt-occ">
+          <input type="radio" name="banco" value="Banco de Occidente" onchange="selectBanco(this)">
+          <div>
+            <div class="radio-label">🏦 Banco de Occidente</div>
+            <div class="radio-sub">Honduras · Guatemala</div>
+          </div>
+        </label>
+        <label class="radio-opt" id="opt-atl">
+          <input type="radio" name="banco" value="Banco Atlántida" onchange="selectBanco(this)">
+          <div>
+            <div class="radio-label">🏦 Banco Atlántida</div>
+            <div class="radio-sub">Honduras · Centroamérica</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">Fecha de la boleta <span class="req">*</span></div>
+      <input type="date" id="fecha">
+    </div>
+
+    <div class="field">
+      <div class="label">Monto <span class="req">*</span></div>
+      <input type="number" id="monto" placeholder="0.00" step="0.01" min="0.01">
+    </div>
+
+    <div class="field">
+      <div class="label">Nombre de la representante <span class="opt-tag">Opcional</span></div>
+      <input type="text" id="representante" placeholder="Ej: Olga Marina Canales">
+    </div>
+
+    <div class="field" style="margin-bottom:0">
+      <div class="label">Correo para respuesta <span class="req">*</span></div>
+      <input type="email" id="correo" placeholder="usuario@grupopdc.com">
+    </div>
+  </div>
+
+  <div class="form-card">
+    <div class="card-heading">📎 Comprobante de transferencia (Bach)</div>
+    <div class="upload-zone" id="upload-zone">
+      <input type="file" accept="image/*,.pdf" id="file-input" onchange="handleFile(event)">
+      <div class="upload-icon">☁️</div>
+      <div class="upload-text">Clic aquí o arrastra el comprobante</div>
+      <div class="upload-hint">JPG, PNG o PDF · máx. 10 MB</div>
+    </div>
+    <div class="upload-preview" id="preview-wrap">
+      <img id="preview-img" src="" alt="Vista previa">
+    </div>
+    <div class="file-chip" id="file-chip">
+      <span>📎</span><span id="file-chip-name"></span>
+    </div>
+  </div>
+
+  <button class="btn-primary" id="btn-submit" onclick="submitForm()">
+    📨 Enviar solicitud de confirmación
+  </button>
+
+  <div class="form-success" id="form-success">
+    <span style="font-size:1.2rem">✅</span>
+    <div>
+      <div style="font-weight:700;margin-bottom:2px">Solicitud enviada correctamente</div>
+      <div style="font-size:.78rem;opacity:.85">El equipo gestionará la boleta y podrás ver el resultado en la pestaña Gestión.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ PANEL ═══════════════ -->
+<div class="view" id="view-panel">
+
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-val pend" id="cnt-pend">0</div><div class="stat-lbl">Pendientes</div></div>
+    <div class="stat-card"><div class="stat-val conf" id="cnt-conf">0</div><div class="stat-lbl">Confirmadas</div></div>
+    <div class="stat-card"><div class="stat-val rej" id="cnt-rej">0</div><div class="stat-lbl">No encontradas</div></div>
+    <div class="stat-card"><div class="stat-val tot" id="cnt-tot">0</div><div class="stat-lbl">Total</div></div>
+  </div>
+
+  <div class="filter-row">
+    <button class="filter-btn active" onclick="setFilter('all',this)">Todas</button>
+    <button class="filter-btn" onclick="setFilter('pending',this)">⏳ Pendientes</button>
+    <button class="filter-btn" onclick="setFilter('confirmed',this)">✅ Confirmadas</button>
+    <button class="filter-btn" onclick="setFilter('rejected',this)">❌ No encontradas</button>
+  </div>
+
+  <div id="boletas-list"></div>
+
+</div>
+
+<!-- ═══════════════ NOTIF ═══════════════ -->
+<div class="view" id="view-notif">
+
+  <div class="notif-card">
+    <div class="notif-heading">🔔 Registro de alertas</div>
+    <div id="notif-list">
+      <div class="empty-state"><span class="empty-icon">🔕</span>Sin alertas aún</div>
+    </div>
+  </div>
+
+  <div style="text-align:right">
+    <button class="btn-clear" onclick="clearNotifs()">🗑 Limpiar alertas</button>
+  </div>
+
+</div>
+</div><!-- /main -->
+
+<script>
+/* ─── STATE ─────────────────────────────────── */
+var boletas=[], notifs=[], filter='all', expandedId=null;
+var fileData=null, fileDataUrl=null;
+var SK='pdc_boletas_v3', NK='pdc_notifs_v3';
+
+/* ─── STORAGE ────────────────────────────────── */
+function save(){try{localStorage.setItem(SK,JSON.stringify(boletas))}catch(e){}}
+function saveN(){try{localStorage.setItem(NK,JSON.stringify(notifs.slice(0,60)))}catch(e){}}
+function load(){
+  try{var r=localStorage.getItem(SK);if(r)boletas=JSON.parse(r)}catch(e){boletas=[]}
+  try{var n=localStorage.getItem(NK);if(n)notifs=JSON.parse(n)}catch(e){notifs=[]}
+}
+
+/* ─── TABS ───────────────────────────────────── */
+function switchTab(t){
+  ['form','panel','notif'].forEach(function(v){
+    document.getElementById('view-'+v).classList.remove('active');
+    document.getElementById('tab-'+v).classList.remove('active');
+  });
+  document.getElementById('view-'+t).classList.add('active');
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='panel'){renderPanel();updateStats()}
+  if(t==='notif'){renderNotifs();markNotifsRead()}
+}
+
+/* ─── BADGES ─────────────────────────────────── */
+function updateBadges(){
+  var p=boletas.filter(function(b){return b.status==='pending'}).length;
+  var el=document.getElementById('badge-pend');
+  el.textContent=p;el.style.display=p?'inline':'none';
+}
+function updateNotifBadge(){
+  var u=notifs.filter(function(n){return !n.read}).length;
+  var el=document.getElementById('badge-notif');
+  el.textContent=u;el.style.display=u?'inline':'none';
+}
+function markNotifsRead(){
+  notifs.forEach(function(n){n.read=true});saveN();
+  document.getElementById('badge-notif').style.display='none';
+}
+
+/* ─── TOAST ──────────────────────────────────── */
+function toast(type,title,msg){
+  var icons={success:'✅',info:'ℹ️',warn:'⚠️'};
+  var wrap=document.getElementById('toast-wrap');
+  var el=document.createElement('div');
+  el.className='toast '+type;
+  el.innerHTML='<div class="toast-icon">'+icons[type]+'</div><div><div class="toast-title">'+title+'</div><div class="toast-msg">'+msg+'</div></div>';
+  wrap.appendChild(el);
+  setTimeout(function(){el.style.animation='toastOut .3s ease forwards';setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el)},320)},5200);
+}
+
+/* ─── NOTIFS ─────────────────────────────────── */
+function addNotif(type,title,msg){
+  var now=new Date();
+  var t=now.toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})+' · '+now.toLocaleDateString('es',{day:'2-digit',month:'short'});
+  notifs.unshift({type:type,title:title,msg:msg,time:t,read:false});
+  saveN();updateNotifBadge();
+}
+function clearNotifs(){notifs=[];saveN();renderNotifs();document.getElementById('badge-notif').style.display='none'}
+function renderNotifs(){
+  var el=document.getElementById('notif-list');
+  if(!notifs.length){el.innerHTML='<div class="empty-state"><span class="empty-icon">🔕</span>Sin alertas aún</div>';return}
+  var dc={new:'nd-new',confirmed:'nd-conf',rejected:'nd-rej'};
+  el.innerHTML=notifs.map(function(n){
+    return '<div class="notif-item"><div class="nd '+(dc[n.type]||'nd-new')+'"></div>'+
+      '<div class="notif-text"><strong>'+n.title+'</strong><br>'+n.msg+'</div>'+
+      '<div class="notif-time">'+n.time+'</div></div>';
+  }).join('');
+}
+
+/* ─── FORM ───────────────────────────────────── */
+function selectBanco(radio){
+  document.querySelectorAll('.radio-opt').forEach(function(el){el.classList.remove('selected')});
+  radio.closest('.radio-opt').classList.add('selected');
+}
+
+function handleFile(e){
+  var f=e.target.files[0]; if(!f)return;
+  fileData=f;
+  document.getElementById('file-chip-name').textContent=f.name;
+  document.getElementById('file-chip').style.display='flex';
+  if(f.type.startsWith('image/')){
+    var r=new FileReader();
+    r.onload=function(ev){
+      fileDataUrl=ev.target.result;
+      document.getElementById('preview-img').src=ev.target.result;
+      document.getElementById('preview-wrap').style.display='flex';
+    };r.readAsDataURL(f);
+  }else{fileDataUrl=null;document.getElementById('preview-wrap').style.display='none'}
+}
+
+function submitForm(){
+  var banco=document.querySelector('input[name="banco"]:checked');
+  var fecha=document.getElementById('fecha').value;
+  var monto=document.getElementById('monto').value;
+  var correo=document.getElementById('correo').value;
+  if(!banco){toast('warn','Banco requerido','Selecciona Banco de Occidente o Banco Atlántida.');return}
+  if(!fecha){toast('warn','Fecha requerida','Ingresa la fecha de la boleta.');return}
+  if(!monto||parseFloat(monto)<=0){toast('warn','Monto inválido','Ingresa un monto mayor a cero.');return}
+  if(!correo||!correo.includes('@')){toast('warn','Correo inválido','Ingresa un correo electrónico válido.');return}
+  if(!fileData){toast('warn','Comprobante faltante','Debes adjuntar el Bach (comprobante bancario).');return}
+
+  var btn=document.getElementById('btn-submit');
+  btn.disabled=true;btn.textContent='Enviando...';
+
+  var now=new Date();
+  var ts=now.toLocaleDateString('es',{day:'2-digit',month:'short',year:'numeric'})+' '+now.toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});
+  var rep=document.getElementById('representante').value.trim();
+  var b={
+    id:Date.now(),banco:banco.value,fecha:fecha,
+    monto:parseFloat(monto).toFixed(2),
+    correo:correo,
+    representante:rep||null,
+    dataUrl:fileDataUrl,fileName:fileData.name,
+    status:'pending',capturaUrl:null,
+    submitTime:ts,resolveTime:null
+  };
+  boletas.unshift(b);save();
+  updateBadges();
+
+  var label=b.representante?b.representante:'boleta sin nombre';
+  toast('info','📤 Solicitud enviada','L '+fmt(b.monto)+' en '+b.banco+(b.representante?' — '+b.representante:''));
+  addNotif('new','Nueva solicitud de confirmación','L '+fmt(b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:'')+' · Correo: '+b.correo);
+
+  resetForm();
+  btn.disabled=false;btn.textContent='📨 Enviar solicitud de confirmación';
+  var fs=document.getElementById('form-success');
+  fs.classList.add('show');setTimeout(function(){fs.classList.remove('show')},6000);
+}
+
+function resetForm(){
+  var ch=document.querySelector('input[name="banco"]:checked');if(ch)ch.checked=false;
+  document.querySelectorAll('.radio-opt').forEach(function(el){el.classList.remove('selected')});
+  ['fecha','monto','representante','correo'].forEach(function(id){document.getElementById(id).value=''});
+  document.getElementById('file-input').value='';
+  document.getElementById('preview-wrap').style.display='none';
+  document.getElementById('file-chip').style.display='none';
+  fileData=null;fileDataUrl=null;
+}
+
+/* ─── PANEL ──────────────────────────────────── */
+function fmt(n){return parseFloat(n).toLocaleString('es',{minimumFractionDigits:2,maximumFractionDigits:2})}
+
+function updateStats(){
+  var p=boletas.filter(function(b){return b.status==='pending'}).length;
+  var c=boletas.filter(function(b){return b.status==='confirmed'}).length;
+  var r=boletas.filter(function(b){return b.status==='rejected'}).length;
+  document.getElementById('cnt-pend').textContent=p;
+  document.getElementById('cnt-conf').textContent=c;
+  document.getElementById('cnt-rej').textContent=r;
+  document.getElementById('cnt-tot').textContent=boletas.length;
+  updateBadges();
+}
+
+function setFilter(f,btn){
+  filter=f;
+  document.querySelectorAll('.filter-btn').forEach(function(el){el.classList.remove('active')});
+  btn.classList.add('active');
+  renderPanel();
+}
+
+function renderPanel(){
+  var list=document.getElementById('boletas-list');
+  var rows=boletas.filter(function(b){return filter==='all'||b.status===filter});
+  if(!rows.length){
+    list.innerHTML='<div class="empty-state"><span class="empty-icon">📭</span>No hay boletas en esta categoría</div>';
+    return;
+  }
+  list.innerHTML=rows.map(function(b){
+    var stC=b.status==='pending'?'st-pending':b.status==='confirmed'?'st-confirmed':'st-rejected';
+    var stT=b.status==='pending'?'⏳ Pendiente':b.status==='confirmed'?'✅ En banco':'❌ No encontrada';
+    var bkC=b.banco.includes('Occidente')?'bank-occ':'bank-atl';
+    var isExp=expandedId===b.id;
+
+    var capHtml=b.capturaUrl
+      ?'<div class="capture-preview"><img src="'+b.capturaUrl+'" alt="captura"><span>Captura de confirmación adjunta ✓</span></div>'
+      :'';
+
+    var actions='';
+    if(b.status==='pending'){
+      actions='<div class="action-row">'+
+        '<button class="btn-confirm" onclick="doConfirm('+b.id+',event)">✅ Confirmada en banco</button>'+
+        '<button class="btn-reject" onclick="doReject('+b.id+',event)">❌ No encontrada</button>'+
+        '<label class="btn-capture">📷 Adjuntar captura<input type="file" accept="image/*" onchange="doCaptura('+b.id+',event)"></label>'+
+      '</div>'+
+      '<div class="action-hint">💡 Adjunta la captura bancaria antes de confirmar (recomendado)</div>'+
+      capHtml;
+    } else {
+      actions=(b.resolveTime?'<div class="action-hint" style="margin-top:0">🕐 Resuelto el '+b.resolveTime+'</div>':'')+capHtml;
+    }
+
+    var imgArea=b.dataUrl
+      ?'<img src="'+b.dataUrl+'" alt="Comprobante" onclick="openLb(\''+b.id+'\',event)">'
+      :'<div class="no-img">📄 '+b.fileName+'</div>';
+
+    return '<div class="boleta-card'+(isExp?' expanded':'')+'" id="bc-'+b.id+'" onclick="toggle('+b.id+',event)">'+
+      '<div class="boleta-header">'+
+        '<span class="bank-badge '+bkC+'">'+b.banco+'</span>'+
+        '<div class="boleta-info">'+
+          '<div class="boleta-rep">'+(b.representante||'<span style="opacity:.5;font-style:italic">Sin nombre</span>')+'</div>'+
+          '<div class="boleta-meta">'+b.fecha+' · '+b.correo+'</div>'+
+        '</div>'+
+        '<div class="boleta-right">'+
+          '<div class="boleta-amount">L '+fmt(b.monto)+'</div>'+
+          '<span class="status-badge '+stC+'">'+stT+'</span>'+
+        '</div>'+
+        '<div class="chev'+(isExp?' open':'')+'">▾</div>'+
+      '</div>'+
+      '<div class="boleta-body'+(isExp?' open':'')+'" id="bb-'+b.id+'">'+
+        '<div class="detail-grid">'+
+          '<div><div class="d-lbl">Enviada</div><div class="d-val">'+b.submitTime+'</div></div>'+
+          '<div><div class="d-lbl">Monto</div><div class="d-val" style="color:var(--avon);font-weight:700">L '+fmt(b.monto)+'</div></div>'+
+          '<div><div class="d-lbl">Banco</div><div class="d-val">'+b.banco+'</div></div>'+
+          '<div><div class="d-lbl">Correo</div><div class="d-val" style="font-size:.78rem">'+b.correo+'</div></div>'+
+        '</div>'+
+        '<div class="comprobante-wrap" id="cw-'+b.id+'">'+imgArea+'</div>'+
+        actions+
+      '</div>'+
+    '</div>';
+  }).join('');
+  updateStats();
+}
+
+function toggle(id,e){
+  if(e.target.closest('.action-row')||e.target.tagName==='INPUT'||e.target.tagName==='LABEL')return;
+  expandedId=(expandedId===id)?null:id;
+  renderPanel();
+}
+
+function doConfirm(id,e){
+  e.stopPropagation();
+  var b=boletas.find(function(x){return x.id===id});if(!b)return;
+  b.status='confirmed';b.resolveTime=ts();
+  save();
+  var rep=b.representante?'— '+b.representante:'';
+  toast('success','✅ Boleta confirmada en banco','L '+fmt(b.monto)+' · '+b.banco+' '+rep);
+  addNotif('confirmed','Confirmada en banco','L '+fmt(b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:'')+' · '+b.correo);
+  renderPanel();
+}
+
+function doReject(id,e){
+  e.stopPropagation();
+  var b=boletas.find(function(x){return x.id===id});if(!b)return;
+  b.status='rejected';b.resolveTime=ts();
+  save();
+  var rep=b.representante?'— '+b.representante:'';
+  toast('warn','⚠️ No encontrada en banco','L '+fmt(b.monto)+' · '+b.banco+' '+rep);
+  addNotif('rejected','No encontrada en banco','L '+fmt(b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:'')+' · '+b.correo);
+  renderPanel();
+}
+
+function doCaptura(id,e){
+  e.stopPropagation();
+  var f=e.target.files[0];if(!f)return;
+  var r=new FileReader();
+  r.onload=function(ev){
+    var b=boletas.find(function(x){return x.id===id});
+    if(b){b.capturaUrl=ev.target.result;save()}
+    expandedId=id;renderPanel();
+    toast('info','📷 Captura adjuntada','La captura del banco fue guardada en la boleta.');
+  };r.readAsDataURL(f);
+}
+
+function ts(){
+  var now=new Date();
+  return now.toLocaleDateString('es',{day:'2-digit',month:'short'})+' '+now.toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});
+}
+
+/* ─── LIGHTBOX ───────────────────────────────── */
+function openLb(id,e){
+  if(e)e.stopPropagation();
+  var b=boletas.find(function(x){return x.id==id});
+  if(!b||!b.dataUrl)return;
+  document.getElementById('lb-img').src=b.dataUrl;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox(){document.getElementById('lightbox').classList.remove('open')}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLightbox()});
+
+/* ─── INIT ───────────────────────────────────── */
+load();updateBadges();updateNotifBadge();
+</script>
+</body>
+</html>
