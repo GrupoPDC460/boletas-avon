@@ -424,7 +424,7 @@ var DATA_GIST='8f2f132f4b5082ce9d19af0ca9bc840b';
 var POLL_MS=9000,lastHash='',pollTimer=null;
 
 /* ─── STORAGE ────────────────────────────────── */
-function gistR(cb){fetch('https://api.github.com/gists/'+DATA_GIST,{headers:{'Authorization':'token '+GH_TOKEN,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'}}).then(function(r){return r.json()}).then(function(d){cb(null,JSON.parse(d.files['boletas.json'].content))}).catch(function(e){cb(e,null)})}
+function gistR(cb){fetch('https://raw.githubusercontent.com/GrupoPDC460/boletas-avon/main/data.json').then(function(r){return r.json()}).then(function(data){cb(null,data)}).catch(function(err){setSS('err','Error de conexion: '+err.message);cb(err,null)})}
 function gistW(data,cb){fetch('https://api.github.com/gists/'+DATA_GIST,{method:'PATCH',headers:{'Authorization':'token '+GH_TOKEN,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},body:JSON.stringify({files:{'boletas.json':{content:JSON.stringify(data)}}})}).then(function(r){return r.json()}).then(function(d){cb(null,d)}).catch(function(e){cb(e,null)})}
 function setSS(st,msg){var a=document.getElementById('sync-dot'),b=document.getElementById('sync-text');if(a)a.className='sync-dot '+st;if(b)b.textContent=msg}
 function save(cb){setSS('loading','Guardando...');gistW({boletas:boletas,notifs:notifs.slice(0,80)},function(err){if(err){setSS('err','Error al guardar');if(cb)cb(err);return}lastHash=JSON.stringify(boletas);setSS('ok','Guardado '+new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));if(cb)cb(null)})}
