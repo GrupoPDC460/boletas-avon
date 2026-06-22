@@ -256,6 +256,12 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
   .action-row .btn-confirm,.action-row .btn-reject,.action-row .btn-capture{width:100%;justify-content:center}
   .header-title{font-size:1.05rem}
 }
+.sync-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:5px 16px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:.72rem;color:var(--text-muted)}
+.sync-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sync-dot.ok{background:var(--success);box-shadow:0 0 5px var(--success)}
+.sync-dot.loading{background:var(--warn);animation:pulse 1s infinite}
+.sync-dot.err{background:var(--danger)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 </style>
 </head>
 <body>
@@ -270,6 +276,7 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
 </div>
 
 <!-- NAV TABS -->
+<div class="sync-bar"><div class="sync-dot loading" id="sync-dot"></div><span id="sync-text">Conectando...</span></div>
 <div class="nav-tabs">
   <div class="tab active" id="tab-form" onclick="switchTab('form')">
     📤 Solicitud
@@ -415,11 +422,12 @@ var fileData=null, fileDataUrl=null;
 var SK='pdc_boletas_v3', NK='pdc_notifs_v3';
 
 /* ─── STORAGE ────────────────────────────────── */
-function save(){try{localStorage.setItem(SK,JSON.stringify(boletas))}catch(e){}}
-function saveN(){try{localStorage.setItem(NK,JSON.stringify(notifs.slice(0,60)))}catch(e){}}
-function load(){
-  try{var r=localStorage.getItem(SK);if(r)boletas=JSON.parse(r)}catch(e){boletas=[]}
-  try{var n=localStorage.getItem(NK);if(n)notifs=JSON.parse(n)}catch(e){notifs=[]}
+function gistR(cb){fetch('https://api.github.com/gists/'+DATA_GIST,{headers:{'Authorization':'token '+GH_TOKEN,'Accept':'application/vnd.github.v3+json','Cache-Control':'no-cache'}}).then(function(r){return r.json()}).then(function(d){cb(null,JSON.parse(d.files['boletas.json'].content))}).catch(function(e){cb(e,null)})}
+function gistW(data,cb){fetch('https://api.github.com/gists/'+DATA_GIST,{method:'PATCH',headers:{'Authorization':'token '+GH_TOKEN,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},body:JSON.stringify({files:{'boletas.json':{content:JSON.stringify(data)}}})}).then(function(r){return r.json()}).then(function(d){cb(null,d)}).catch(function(e){cb(e,null)})}
+function setSS(st,msg){var a=document.getElementById('sync-dot'),b=document.getElementById('sync-text');if(a)a.className='sync-dot '+st;if(b)b.textContent=msg}
+function save(cb){setSS('loading','Guardando...');gistW({boletas:boletas,notifs:notifs.slice(0,80)},function(err){if(err){setSS('err','Error al guardar');if(cb)cb(err);return}lastHash=JSON.stringify(boletas);setSS('ok','Guardado '+new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));if(cb)cb(null)})}
+function saveN(){}
+function load(){setSS('loading','Conectando...');gistR(function(err,data){if(err){setSS('err','Error de conexion');return}boletas=data.boletas||[];notifs=data.notifs||[];lastHash=JSON.stringify(boletas);updateBadges();updateNotifBadge();setSS('ok','Conectado '+new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));var av=document.querySelector('.view.active');if(av&&av.id==='view-panel'){renderPanel();updateStats()}if(av&&av.id==='view-notif'){renderNotifs()}})
 }
 
 /* ─── TABS ───────────────────────────────────── */
@@ -527,9 +535,10 @@ function submitForm(){
     status:'pending',capturaUrl:null,
     submitTime:ts,resolveTime:null
   };
-  boletas.unshift(b);save();
-  updateBadges();
-
+  var btn2=document.getElementById('btn-submit');btn2.disabled=true;btn2.textContent='Enviando...';
+  boletas.unshift(b);
+  addNotif('new','Nueva solicitud','L '+fmt(b.monto)+' en '+b.banco+(b.representante?' - '+b.representante:'')+' - '+b.correo);
+  save(function(err){btn2.disabled=false;btn2.textContent='Enviar solicitud de confirmacion';if(err){toast('warn','Error','No se pudo guardar. Revisa tu conexion.');boletas.shift();return}updateBadges();resetForm();var fs=document.getElementById('form-success');fs.classList.add('show');setTimeout(function(){fs.classList.remove('show')},6000);toast('success','Solicitud enviada','Visible para todo el equipo en tiempo real.')});
   var label=b.representante?b.representante:'boleta sin nombre';
   toast('info','📤 Solicitud enviada','L '+fmt(b.monto)+' en '+b.banco+(b.representante?' — '+b.representante:''));
   addNotif('new','Nueva solicitud de confirmación','L '+fmt(b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:'')+' · Correo: '+b.correo);
