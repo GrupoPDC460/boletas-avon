@@ -701,7 +701,7 @@ function closeLightbox(){document.getElementById('lightbox').classList.remove('o
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLightbox()});
 
 /* ─── INIT ───────────────────────────────────── */
-load();updateBadges();updateNotifBadge();
+load();pollTimer=setInterval(function(){gistR(function(err,data){if(err)return;var h=JSON.stringify(data.boletas);if(h===lastHash)return;var pP=boletas.filter(function(b){return b.status==='pending'}).length;boletas=data.boletas||[];notifs=data.notifs||[];lastHash=h;var nP=boletas.filter(function(b){return b.status==='pending'}).length;if(nP>pP){toast('info','Nueva solicitud recibida',(nP-pP)+' boleta(s) pendiente(s)');try{var ac=new AudioContext(),os=ac.createOscillator(),gn=ac.createGain();os.connect(gn);gn.connect(ac.destination);os.frequency.value=880;gn.gain.setValueAtTime(.2,ac.currentTime);gn.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.3);os.start();os.stop(ac.currentTime+.3)}catch(e){}}var nC=data.boletas.filter(function(b){return b.status==='confirmed'}).length;if(nC>boletas.filter(function(b){return b.status==='confirmed'}).length){toast('success','Boleta confirmada en banco','El equipo confirmo una boleta.')}updateBadges();updateNotifBadge();var av=document.querySelector('.view.active');if(av&&av.id==='view-panel'){renderPanel();updateStats()}setSS('ok','Actualizado '+new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));})},POLL_MS);
 </script>
 </body>
 </html>
