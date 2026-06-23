@@ -6,6 +6,7 @@
 <title>Confirmación de Boletas · Avon CARD · Grupo PDC</title>
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --bg:#0F0E1A;--bg2:#1A1830;--surface:#1E1B36;--surface2:#28244A;
@@ -416,20 +417,144 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
 </div><!-- /main -->
 
 <script>
+/* ═══════════════════════════════════════════════════════
+   BOLETAS AVON CARD · Backend: Supabase
+   ═══════════════════════════════════════════════════════ */
+
+/* ─── CONFIG ─────────────────────────────────── */
+var SB_URL='https://fbhkkprnpabwapgetbad.supabase.co';
+var SB_KEY='sb_publishable_vl7RWFKvyBTJYVSYclo6EQ_Mt64ibRj';
+var BUCKET='comprobantes';
+var sb=window.supabase.createClient(SB_URL,SB_KEY);
+
 /* ─── STATE ─────────────────────────────────── */
 var boletas=[],notifs=[],filter='all',expandedId=null,fileData=null,fileDataUrl=null;
-var _r=function(s){return s.replace(/[a-zA-Z]/g,function(c){return String.fromCharCode((c<='Z'?90:122)>=(c=c.charCodeAt(0)+13)?c:c-26)})};
-var GH_TOKEN=_r('tuc_kt7U5dkYlw9kT0h28hRum4nKbig2Zh12h8Z0');
-var DATA_GIST='8f2f132f4b5082ce9d19af0ca9bc840b';
-var POLL_MS=9000,lastHash='',pollTimer=null;
+var prevPending=0,prevConfirmed=0,realtimeReady=false;
 
-/* ─── STORAGE ────────────────────────────────── */
-function gistR(cb){var ts=Date.now();var url='https://raw.githubusercontent.com/GrupoPDC460/boletas-avon/main/boletas-data.json?t='+ts;fetch(url).then(function(r){if(!r.ok)throw new Error(r.status+' '+r.statusText);return r.json()}).then(function(data){cb(null,data)}).catch(function(err){setSS('err','Error de conexion');cb(err,null)})}
-function gistW(data,cb){setSS('loading','Enviando al repo...');var payload=JSON.stringify(data);var b64=btoa(unescape(encodeURIComponent(payload)));var reqBody=JSON.stringify({message:'📊 Boleta actualizada desde sistema',content:b64,sha:lastSha||''});fetch('https://api.github.com/repos/GrupoPDC460/boletas-avon/contents/boletas-data.json',{method:'PUT',headers:{'Authorization':'token '+GH_TOKEN,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:reqBody}).then(function(r){if(!r.ok)throw new Error(r.status+' '+r.statusText);return r.json()}).then(function(d){lastSha=d.content.sha;cb(null,d)}).catch(function(e){setSS('err','Error: '+e.message);cb(e,null)})}
-function setSS(st,msg){var a=document.getElementById('sync-dot'),b=document.getElementById('sync-text');if(a)a.className='sync-dot '+st;if(b)b.textContent=msg}
-function save(cb){setSS('loading','Guardando...');gistW({boletas:boletas,notifs:notifs.slice(0,80)},function(err){if(err){setSS('err','Error al guardar');if(cb)cb(err);return}lastHash=JSON.stringify(boletas);setSS('ok','Guardado '+new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));if(cb)cb(null)})}
-function saveN(){}
-function load(){setSS('loading','Conectando...');gistR(function(err,data){if(err){setSS('err','Error de conexion');return}boletas=data.boletas||[];notifs=data.notifs||[];lastHash=JSON.stringify(boletas);updateBadges();updateNotifBadge();setSS('ok','Conectado '+new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));var av=document.querySelector('.view.active');if(av&&av.id==='view-panel'){renderPanel();updateStats()}if(av&&av.id==='view-notif'){renderNotifs()}})
+/* ─── HELPERS DE MAPEO (fila DB <-> objeto UI) ── */
+function pubUrl(path){
+  if(!path)return null;
+  return SB_URL+'/storage/v1/object/public/'+BUCKET+'/'+path;
+}
+function rowToBoleta(r){
+  return {
+    id:r.id,
+    banco:r.banco,
+    fecha:r.fecha,
+    monto:parseFloat(r.monto).toFixed(2),
+    correo:r.correo,
+    representante:r.representante,
+    fileName:r.file_name,
+    imagePath:r.image_path,
+    capturaPath:r.captura_path,
+    dataUrl:pubUrl(r.image_path),
+    capturaUrl:pubUrl(r.captura_path),
+    status:r.status,
+    submitTime:fmtTime(r.submit_time),
+    resolveTime:r.resolve_time?fmtTime(r.resolve_time):null
+  };
+}
+function fmtTime(iso){
+  try{
+    var d=new Date(iso);
+    return d.toLocaleDateString('es',{day:'2-digit',month:'short',year:'numeric'})+' '+
+           d.toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){return iso||''}
+}
+function rowToNotif(r){
+  return {id:r.id,type:r.type,title:r.title,msg:r.msg,read:r.read,
+    time:fmtTime(r.created_at)};
+}
+
+/* ─── SYNC BAR ───────────────────────────────── */
+function setSS(st,msg){
+  var a=document.getElementById('sync-dot'),b=document.getElementById('sync-text');
+  if(a)a.className='sync-dot '+st;if(b)b.textContent=msg;
+}
+
+/* ─── LECTURA INICIAL ────────────────────────── */
+function load(){
+  setSS('loading','Conectando...');
+  Promise.all([
+    sb.from('boletas').select('*').order('id',{ascending:false}),
+    sb.from('notifs').select('*').order('id',{ascending:false}).limit(80)
+  ]).then(function(res){
+    var bRes=res[0],nRes=res[1];
+    if(bRes.error)throw bRes.error;
+    if(nRes.error)throw nRes.error;
+    boletas=(bRes.data||[]).map(rowToBoleta);
+    notifs=(nRes.data||[]).map(rowToNotif);
+    prevPending=boletas.filter(function(b){return b.status==='pending'}).length;
+    prevConfirmed=boletas.filter(function(b){return b.status==='confirmed'}).length;
+    updateBadges();updateNotifBadge();
+    setSS('ok','Conectado '+nowHM());
+    var av=document.querySelector('.view.active');
+    if(av&&av.id==='view-panel'){renderPanel();updateStats()}
+    if(av&&av.id==='view-notif'){renderNotifs()}
+    if(!realtimeReady)subscribeRealtime();
+  }).catch(function(err){
+    setSS('err','Error de conexion');
+    toast('warn','Error de conexión','No se pudo conectar a la base de datos.');
+    console.error('load error',err);
+  });
+}
+function nowHM(){return new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+
+/* ─── REALTIME (sincronización en vivo) ──────── */
+function subscribeRealtime(){
+  realtimeReady=true;
+  sb.channel('boletas-rt')
+    .on('postgres_changes',{event:'*',schema:'public',table:'boletas'},function(){refreshBoletas()})
+    .on('postgres_changes',{event:'*',schema:'public',table:'notifs'},function(){refreshNotifs()})
+    .subscribe();
+}
+function refreshBoletas(){
+  sb.from('boletas').select('*').order('id',{ascending:false}).then(function(res){
+    if(res.error){console.error(res.error);return}
+    var fresh=(res.data||[]).map(rowToBoleta);
+    var nP=fresh.filter(function(b){return b.status==='pending'}).length;
+    var nC=fresh.filter(function(b){return b.status==='confirmed'}).length;
+    if(nP>prevPending){
+      toast('info','Nueva solicitud recibida',(nP-prevPending)+' boleta(s) pendiente(s)');
+      beep();
+    }
+    if(nC>prevConfirmed){
+      toast('success','Boleta confirmada en banco','El equipo confirmó una boleta.');
+    }
+    prevPending=nP;prevConfirmed=nC;
+    boletas=fresh;
+    updateBadges();
+    var av=document.querySelector('.view.active');
+    if(av&&av.id==='view-panel'){renderPanel();updateStats()}
+    setSS('ok','Actualizado '+nowHM());
+  });
+}
+function refreshNotifs(){
+  sb.from('notifs').select('*').order('id',{ascending:false}).limit(80).then(function(res){
+    if(res.error){console.error(res.error);return}
+    notifs=(res.data||[]).map(rowToNotif);
+    updateNotifBadge();
+    var av=document.querySelector('.view.active');
+    if(av&&av.id==='view-notif'){renderNotifs()}
+  });
+}
+function beep(){
+  try{var ac=new AudioContext(),os=ac.createOscillator(),gn=ac.createGain();
+    os.connect(gn);gn.connect(ac.destination);os.frequency.value=880;
+    gn.gain.setValueAtTime(.2,ac.currentTime);
+    gn.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.3);
+    os.start();os.stop(ac.currentTime+.3)}catch(e){}
+}
+
+/* ─── SUBIR IMAGEN AL STORAGE ────────────────── */
+function uploadImage(file,prefix){
+  var ext=(file.name.split('.').pop()||'png').toLowerCase();
+  var path=prefix+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.'+ext;
+  return sb.storage.from(BUCKET).upload(path,file,{contentType:file.type||'image/png',upsert:false})
+    .then(function(res){
+      if(res.error)throw res.error;
+      return path;
+    });
 }
 
 /* ─── TABS ───────────────────────────────────── */
@@ -456,8 +581,11 @@ function updateNotifBadge(){
   el.textContent=u;el.style.display=u?'inline':'none';
 }
 function markNotifsRead(){
-  notifs.forEach(function(n){n.read=true});saveN();
+  var unread=notifs.filter(function(n){return !n.read});
+  if(!unread.length)return;
+  notifs.forEach(function(n){n.read=true});
   document.getElementById('badge-notif').style.display='none';
+  sb.from('notifs').update({read:true}).eq('read',false).then(function(){});
 }
 
 /* ─── TOAST ──────────────────────────────────── */
@@ -473,19 +601,23 @@ function toast(type,title,msg){
 
 /* ─── NOTIFS ─────────────────────────────────── */
 function addNotif(type,title,msg){
-  var now=new Date();
-  var t=now.toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})+' · '+now.toLocaleDateString('es',{day:'2-digit',month:'short'});
-  notifs.unshift({type:type,title:title,msg:msg,time:t,read:false});
-  saveN();updateNotifBadge();
+  return sb.from('notifs').insert({type:type,title:title,msg:msg,read:false}).then(function(){});
 }
-function clearNotifs(){notifs=[];saveN();renderNotifs();document.getElementById('badge-notif').style.display='none'}
+function clearNotifs(){
+  var ids=notifs.map(function(n){return n.id});
+  if(!ids.length){renderNotifs();return}
+  sb.from('notifs').delete().in('id',ids).then(function(){
+    notifs=[];renderNotifs();
+    document.getElementById('badge-notif').style.display='none';
+  });
+}
 function renderNotifs(){
   var el=document.getElementById('notif-list');
   if(!notifs.length){el.innerHTML='<div class="empty-state"><span class="empty-icon">🔕</span>Sin alertas aún</div>';return}
   var dc={new:'nd-new',confirmed:'nd-conf',rejected:'nd-rej'};
   el.innerHTML=notifs.map(function(n){
     return '<div class="notif-item"><div class="nd '+(dc[n.type]||'nd-new')+'"></div>'+
-      '<div class="notif-text"><strong>'+n.title+'</strong><br>'+n.msg+'</div>'+
+      '<div class="notif-text"><strong>'+n.title+'</strong><br>'+(n.msg||'')+'</div>'+
       '<div class="notif-time">'+n.time+'</div></div>';
   }).join('');
 }
@@ -498,6 +630,7 @@ function selectBanco(radio){
 
 function handleFile(e){
   var f=e.target.files[0]; if(!f)return;
+  if(f.size>10*1024*1024){toast('warn','Archivo muy grande','El comprobante no debe pasar de 10 MB.');e.target.value='';return}
   fileData=f;
   document.getElementById('file-chip-name').textContent=f.name;
   document.getElementById('file-chip').style.display='flex';
@@ -523,32 +656,34 @@ function submitForm(){
   if(!fileData){toast('warn','Comprobante faltante','Debes adjuntar el Bach (comprobante bancario).');return}
 
   var btn=document.getElementById('btn-submit');
-  btn.disabled=true;btn.textContent='Enviando...';
+  btn.disabled=true;btn.textContent='Subiendo comprobante...';
 
-  var now=new Date();
-  var ts=now.toLocaleDateString('es',{day:'2-digit',month:'short',year:'numeric'})+' '+now.toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});
   var rep=document.getElementById('representante').value.trim();
-  var b={
-    id:Date.now(),banco:banco.value,fecha:fecha,
-    monto:parseFloat(monto).toFixed(2),
-    correo:correo,
-    representante:rep||null,
-    dataUrl:fileDataUrl,fileName:fileData.name,
-    status:'pending',capturaUrl:null,
-    submitTime:ts,resolveTime:null
-  };
-  var btn2=document.getElementById('btn-submit');btn2.disabled=true;btn2.textContent='Enviando...';
-  boletas.unshift(b);
-  addNotif('new','Nueva solicitud','L '+fmt(b.monto)+' en '+b.banco+(b.representante?' - '+b.representante:'')+' - '+b.correo);
-  save(function(err){btn2.disabled=false;btn2.textContent='Enviar solicitud de confirmacion';if(err){toast('warn','Error','No se pudo guardar. Revisa tu conexion.');boletas.shift();return}updateBadges();resetForm();var fs=document.getElementById('form-success');fs.classList.add('show');setTimeout(function(){fs.classList.remove('show')},6000);toast('success','Solicitud enviada','Visible para todo el equipo en tiempo real.')});
-  var label=b.representante?b.representante:'boleta sin nombre';
-  toast('info','📤 Solicitud enviada','L '+fmt(b.monto)+' en '+b.banco+(b.representante?' — '+b.representante:''));
-  addNotif('new','Nueva solicitud de confirmación','L '+fmt(b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:'')+' · Correo: '+b.correo);
+  var montoF=parseFloat(monto).toFixed(2);
 
-  resetForm();
-  btn.disabled=false;btn.textContent='📨 Enviar solicitud de confirmación';
-  var fs=document.getElementById('form-success');
-  fs.classList.add('show');setTimeout(function(){fs.classList.remove('show')},6000);
+  uploadImage(fileData,'bach').then(function(path){
+    btn.textContent='Guardando...';
+    return sb.from('boletas').insert({
+      banco:banco.value,fecha:fecha,monto:montoF,correo:correo,
+      representante:rep||null,file_name:fileData.name,
+      image_path:path,status:'pending'
+    }).select().single();
+  }).then(function(res){
+    if(res.error)throw res.error;
+    return addNotif('new','Nueva solicitud de confirmación',
+      'L '+fmt(montoF)+' · '+banco.value+(rep?' — '+rep:'')+' · '+correo);
+  }).then(function(){
+    btn.disabled=false;btn.textContent='📨 Enviar solicitud de confirmación';
+    resetForm();
+    var fs=document.getElementById('form-success');
+    fs.classList.add('show');setTimeout(function(){fs.classList.remove('show')},6000);
+    toast('success','Solicitud enviada','Visible para todo el equipo en tiempo real.');
+    refreshBoletas();
+  }).catch(function(err){
+    btn.disabled=false;btn.textContent='📨 Enviar solicitud de confirmación';
+    toast('warn','Error al enviar','No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.');
+    console.error('submit error',err);
+  });
 }
 
 function resetForm(){
@@ -614,7 +749,7 @@ function renderPanel(){
 
     var imgArea=b.dataUrl
       ?'<img src="'+b.dataUrl+'" alt="Comprobante" onclick="openLb(\''+b.id+'\',event)">'
-      :'<div class="no-img">📄 '+b.fileName+'</div>';
+      :'<div class="no-img">📄 '+(b.fileName||'archivo')+'</div>';
 
     return '<div class="boleta-card'+(isExp?' expanded':'')+'" id="bc-'+b.id+'" onclick="toggle('+b.id+',event)">'+
       '<div class="boleta-header">'+
@@ -653,40 +788,41 @@ function toggle(id,e){
 function doConfirm(id,e){
   e.stopPropagation();
   var b=boletas.find(function(x){return x.id===id});if(!b)return;
-  b.status='confirmed';b.resolveTime=ts();
-  save();
-  var rep=b.representante?'— '+b.representante:'';
-  toast('success','✅ Boleta confirmada en banco','L '+fmt(b.monto)+' · '+b.banco+' '+rep);
-  addNotif('confirmed','Confirmada en banco','L '+fmt(b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:'')+' · '+b.correo);
-  renderPanel();
+  sb.from('boletas').update({status:'confirmed',resolve_time:new Date().toISOString()}).eq('id',id).then(function(res){
+    if(res.error){toast('warn','Error','No se pudo confirmar.');return}
+    addNotif('confirmed','Confirmada en banco','L '+fmt(b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:'')+' · '+b.correo);
+    toast('success','✅ Boleta confirmada en banco','L '+fmt(b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:''));
+    refreshBoletas();
+  });
 }
 
 function doReject(id,e){
   e.stopPropagation();
   var b=boletas.find(function(x){return x.id===id});if(!b)return;
-  b.status='rejected';b.resolveTime=ts();
-  save();
-  var rep=b.representante?'— '+b.representante:'';
-  toast('warn','⚠️ No encontrada en banco','L '+fmt(b.monto)+' · '+b.banco+' '+rep);
-  addNotif('rejected','No encontrada en banco','L '+fmt(b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:'')+' · '+b.correo);
-  renderPanel();
+  sb.from('boletas').update({status:'rejected',resolve_time:new Date().toISOString()}).eq('id',id).then(function(res){
+    if(res.error){toast('warn','Error','No se pudo actualizar.');return}
+    addNotif('rejected','No encontrada en banco','L '+fmt(b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:'')+' · '+b.correo);
+    toast('warn','⚠️ No encontrada en banco','L '+fmt(b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:''));
+    refreshBoletas();
+  });
 }
 
 function doCaptura(id,e){
   e.stopPropagation();
   var f=e.target.files[0];if(!f)return;
-  var r=new FileReader();
-  r.onload=function(ev){
-    var b=boletas.find(function(x){return x.id===id});
-    if(b){b.capturaUrl=ev.target.result;save()}
-    expandedId=id;renderPanel();
-    toast('info','📷 Captura adjuntada','La captura del banco fue guardada en la boleta.');
-  };r.readAsDataURL(f);
-}
-
-function ts(){
-  var now=new Date();
-  return now.toLocaleDateString('es',{day:'2-digit',month:'short'})+' '+now.toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});
+  if(f.size>10*1024*1024){toast('warn','Archivo muy grande','La captura no debe pasar de 10 MB.');return}
+  toast('info','Subiendo captura...','Un momento.');
+  uploadImage(f,'captura').then(function(path){
+    return sb.from('boletas').update({captura_path:path}).eq('id',id);
+  }).then(function(res){
+    if(res.error)throw res.error;
+    expandedId=id;
+    toast('success','📷 Captura adjuntada','La captura del banco fue guardada en la boleta.');
+    refreshBoletas();
+  }).catch(function(err){
+    toast('warn','Error','No se pudo subir la captura.');
+    console.error('captura error',err);
+  });
 }
 
 /* ─── LIGHTBOX ───────────────────────────────── */
@@ -701,7 +837,7 @@ function closeLightbox(){document.getElementById('lightbox').classList.remove('o
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLightbox()});
 
 /* ─── INIT ───────────────────────────────────── */
-load();pollTimer=setInterval(function(){gistR(function(err,data){if(err)return;var h=JSON.stringify(data.boletas);if(h===lastHash)return;var pP=boletas.filter(function(b){return b.status==='pending'}).length;boletas=data.boletas||[];notifs=data.notifs||[];lastHash=h;var nP=boletas.filter(function(b){return b.status==='pending'}).length;if(nP>pP){toast('info','Nueva solicitud recibida',(nP-pP)+' boleta(s) pendiente(s)');try{var ac=new AudioContext(),os=ac.createOscillator(),gn=ac.createGain();os.connect(gn);gn.connect(ac.destination);os.frequency.value=880;gn.gain.setValueAtTime(.2,ac.currentTime);gn.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.3);os.start();os.stop(ac.currentTime+.3)}catch(e){}}var nC=data.boletas.filter(function(b){return b.status==='confirmed'}).length;if(nC>boletas.filter(function(b){return b.status==='confirmed'}).length){toast('success','Boleta confirmada en banco','El equipo confirmo una boleta.')}updateBadges();updateNotifBadge();var av=document.querySelector('.view.active');if(av&&av.id==='view-panel'){renderPanel();updateStats()}setSS('ok','Actualizado '+new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit'}));})},POLL_MS);
+load();
 </script>
 </body>
 </html>
