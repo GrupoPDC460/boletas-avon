@@ -100,9 +100,9 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
 .upload-hint{font-size:.72rem;color:var(--text-muted);margin-top:3px;opacity:.7}
 .upload-preview{
   margin-top:12px;border-radius:10px;overflow:hidden;border:1px solid var(--border);
-  background:var(--bg2);display:none;align-items:center;justify-content:center;max-height:220px;
+  background:var(--bg2);display:none;align-items:center;justify-content:center;max-height:320px;
 }
-.upload-preview img{max-width:100%;max-height:220px;object-fit:contain;display:block}
+.upload-preview img{max-width:100%;max-height:320px;object-fit:contain;display:block}
 .file-chip{
   display:none;align-items:center;gap:8px;margin-top:9px;
   padding:7px 12px;background:rgba(233,30,99,.1);border:1px solid rgba(233,30,99,.3);
@@ -212,7 +212,7 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
   background:var(--bg2);display:flex;align-items:center;justify-content:center;
   min-height:100px;margin-bottom:12px;cursor:zoom-in;
 }
-.comprobante-wrap img{max-width:100%;max-height:280px;object-fit:contain;display:block}
+.comprobante-wrap img{max-width:100%;max-height:440px;object-fit:contain;display:block}
 .no-img{padding:20px;text-align:center;color:var(--text-muted);font-size:.82rem}
 .action-row{display:flex;gap:8px;flex-wrap:wrap}
 .btn-confirm,.btn-reject,.btn-capture{
@@ -233,7 +233,9 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
   background:var(--success-bg);border:1px solid var(--success-border);
   font-size:.78rem;color:var(--success);margin-top:9px;
 }
-.capture-preview img{width:38px;height:38px;object-fit:cover;border-radius:6px;border:1px solid var(--success-border);flex-shrink:0}
+.capture-preview img{width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--success-border);flex-shrink:0;cursor:zoom-in;transition:transform .15s}
+.capture-preview img:hover{transform:scale(1.05)}
+.zoom-hint{font-size:.7rem;color:var(--text-muted);text-align:center;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:5px}
 
 /* ── NOTIF ── */
 .notif-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;margin-bottom:16px}
@@ -796,7 +798,7 @@ function renderPanel(){
     var isExp=expandedId===b.id;
 
     var capHtml=b.capturaUrl
-      ?'<div class="capture-preview"><img src="'+b.capturaUrl+'" alt="captura"><span>Captura de confirmación adjunta ✓</span></div>'
+      ?'<div class="capture-preview"><img src="'+b.capturaUrl+'" alt="captura" onclick="openLbUrl(\''+b.capturaUrl+'\',event)"><span>Captura de confirmación adjunta ✓ — toca la imagen para ampliar</span></div>'
       :'';
 
     var actions='';
@@ -822,6 +824,7 @@ function renderPanel(){
     var imgArea=b.dataUrl
       ?'<img src="'+b.dataUrl+'" alt="Comprobante" onclick="openLb(\''+b.id+'\',event)">'
       :'<div class="no-img">📄 '+(b.fileName||'archivo')+'</div>';
+    var imgHint=b.dataUrl?'<div class="zoom-hint">🔍 Toca el comprobante para ampliarlo</div>':'';
 
     return '<div class="boleta-card'+(isExp?' expanded':'')+'" id="bc-'+b.id+'" onclick="toggle('+b.id+',event)">'+
       '<div class="boleta-header">'+
@@ -844,6 +847,7 @@ function renderPanel(){
           '<div><div class="d-lbl">Correo</div><div class="d-val" style="font-size:.78rem">'+b.correo+'</div></div>'+
         '</div>'+
         '<div class="comprobante-wrap" id="cw-'+b.id+'">'+imgArea+'</div>'+
+        imgHint+
         actions+
         adminHtml+
       '</div>'+
@@ -858,8 +862,24 @@ function toggle(id,e){
   renderPanel();
 }
 
+var claveOK=false;
+var CLAVE_GESTION='Avon2026';
+function requireClave(){
+  if(claveOK)return true;
+  var v=prompt('🔑 Para dar respuesta a la solicitud, ingresa la clave de gestión:');
+  if(v===null)return false; // canceló
+  if(v===CLAVE_GESTION){
+    claveOK=true;
+    toast('success','🔓 Clave correcta','Ya puedes confirmar o rechazar boletas en esta sesión.');
+    return true;
+  }
+  toast('warn','Clave incorrecta','La clave ingresada no es válida. Inténtalo de nuevo.');
+  return false;
+}
+
 function doConfirm(id,e){
   e.stopPropagation();
+  if(!requireClave())return;
   var b=boletas.find(function(x){return x.id===id});if(!b)return;
   sb.from('boletas').update({status:'confirmed',resolve_time:new Date().toISOString()}).eq('id',id).then(function(res){
     if(res.error){toast('warn','Error','No se pudo confirmar.');return}
@@ -871,6 +891,7 @@ function doConfirm(id,e){
 
 function doReject(id,e){
   e.stopPropagation();
+  if(!requireClave())return;
   var b=boletas.find(function(x){return x.id===id});if(!b)return;
   sb.from('boletas').update({status:'rejected',resolve_time:new Date().toISOString()}).eq('id',id).then(function(res){
     if(res.error){toast('warn','Error','No se pudo actualizar.');return}
@@ -904,6 +925,12 @@ function openLb(id,e){
   var b=boletas.find(function(x){return x.id==id});
   if(!b||!b.dataUrl)return;
   document.getElementById('lb-img').src=b.dataUrl;
+  document.getElementById('lightbox').classList.add('open');
+}
+function openLbUrl(url,e){
+  if(e)e.stopPropagation();
+  if(!url)return;
+  document.getElementById('lb-img').src=url;
   document.getElementById('lightbox').classList.add('open');
 }
 function closeLightbox(){document.getElementById('lightbox').classList.remove('open')}
