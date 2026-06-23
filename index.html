@@ -263,6 +263,29 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
 .sync-dot.loading{background:var(--warn);animation:pulse 1s infinite}
 .sync-dot.err{background:var(--danger)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── ADMIN ── */
+.admin-toggle{position:fixed;bottom:16px;right:16px;z-index:500;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);width:42px;height:42px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.4);transition:all .2s}
+.admin-toggle:hover{border-color:var(--avon);color:var(--avon)}
+.admin-toggle.on{background:var(--avon);border-color:var(--avon);color:#fff}
+.admin-banner{display:none;background:linear-gradient(135deg,var(--avon-deep),var(--pdc));color:#fff;padding:7px 16px;text-align:center;font-size:.74rem;font-weight:600;letter-spacing:.3px}
+.admin-banner.show{display:block}
+.btn-edit,.btn-delete{border:none;border-radius:8px;padding:8px 12px;font-size:.74rem;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif;transition:all .2s;display:inline-flex;align-items:center;gap:5px}
+.btn-edit{background:rgba(245,166,35,.14);border:1px solid rgba(245,166,35,.4);color:var(--gold)}
+.btn-edit:hover{background:rgba(245,166,35,.25)}
+.btn-delete{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);color:var(--danger)}
+.btn-delete:hover{background:rgba(239,68,68,.22)}
+.admin-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)}
+.modal-back{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;align-items:center;justify-content:center;padding:16px}
+.modal-back.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:1rem;margin-bottom:16px;color:var(--avon);display:flex;align-items:center;gap:8px}
+.modal .field{margin-bottom:14px}
+.modal-actions{display:flex;gap:8px;margin-top:8px}
+.modal-actions button{flex:1;padding:11px;border-radius:9px;font-family:'Poppins',sans-serif;font-weight:600;font-size:.82rem;cursor:pointer;border:none}
+.modal-save{background:linear-gradient(135deg,var(--avon),var(--avon-deep));color:#fff}
+.modal-cancel{background:transparent;border:1px solid var(--border);color:var(--text-muted)}
+.pin-input{letter-spacing:6px;text-align:center;font-size:1.3rem;font-weight:700}
 </style>
 </head>
 <body>
@@ -278,6 +301,7 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
 
 <!-- NAV TABS -->
 <div class="sync-bar"><div class="sync-dot loading" id="sync-dot"></div><span id="sync-text">Conectando...</span></div>
+<div class="admin-banner" id="admin-banner">🔓 Modo administrador activo — puedes editar y borrar solicitudes</div>
 <div class="nav-tabs">
   <div class="tab active" id="tab-form" onclick="switchTab('form')">
     📤 Solicitud
@@ -430,6 +454,7 @@ var sb=window.supabase.createClient(SB_URL,SB_KEY);
 /* ─── STATE ─────────────────────────────────── */
 var boletas=[],notifs=[],filter='all',expandedId=null,fileData=null,fileDataUrl=null;
 var prevPending=0,prevConfirmed=0,realtimeReady=false;
+var ADMIN_PIN='2589',adminMode=false,editingId=null;
 
 /* ─── HELPERS DE MAPEO (fila DB <-> objeto UI) ── */
 function pubUrl(path){
@@ -747,6 +772,13 @@ function renderPanel(){
       actions=(b.resolveTime?'<div class="action-hint" style="margin-top:0">🕐 Resuelto el '+b.resolveTime+'</div>':'')+capHtml;
     }
 
+    var adminHtml=adminMode
+      ?'<div class="admin-row">'+
+        '<button class="btn-edit" onclick="openEdit('+b.id+',event)">✏️ Editar</button>'+
+        '<button class="btn-delete" onclick="doDelete('+b.id+',event)">🗑 Borrar</button>'+
+      '</div>'
+      :'';
+
     var imgArea=b.dataUrl
       ?'<img src="'+b.dataUrl+'" alt="Comprobante" onclick="openLb(\''+b.id+'\',event)">'
       :'<div class="no-img">📄 '+(b.fileName||'archivo')+'</div>';
@@ -773,6 +805,7 @@ function renderPanel(){
         '</div>'+
         '<div class="comprobante-wrap" id="cw-'+b.id+'">'+imgArea+'</div>'+
         actions+
+        adminHtml+
       '</div>'+
     '</div>';
   }).join('');
@@ -780,7 +813,7 @@ function renderPanel(){
 }
 
 function toggle(id,e){
-  if(e.target.closest('.action-row')||e.target.tagName==='INPUT'||e.target.tagName==='LABEL')return;
+  if(e.target.closest('.action-row')||e.target.closest('.admin-row')||e.target.tagName==='INPUT'||e.target.tagName==='LABEL'||e.target.tagName==='BUTTON')return;
   expandedId=(expandedId===id)?null:id;
   renderPanel();
 }
@@ -836,8 +869,160 @@ function openLb(id,e){
 function closeLightbox(){document.getElementById('lightbox').classList.remove('open')}
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLightbox()});
 
+/* ─── ADMIN ──────────────────────────────────── */
+function toggleAdmin(){
+  if(adminMode){
+    adminMode=false;
+    document.getElementById('admin-toggle').classList.remove('on');
+    document.getElementById('admin-toggle').textContent='🔒';
+    document.getElementById('admin-banner').classList.remove('show');
+    toast('info','Modo administrador desactivado','Volviste al modo normal.');
+    renderPanel();
+  }else{
+    document.getElementById('pin-input').value='';
+    document.getElementById('pin-modal').classList.add('open');
+    setTimeout(function(){document.getElementById('pin-input').focus()},100);
+  }
+}
+function closePin(){document.getElementById('pin-modal').classList.remove('open')}
+function checkPin(){
+  var v=document.getElementById('pin-input').value;
+  if(v===ADMIN_PIN){
+    adminMode=true;
+    document.getElementById('admin-toggle').classList.add('on');
+    document.getElementById('admin-toggle').textContent='🔓';
+    document.getElementById('admin-banner').classList.add('show');
+    closePin();
+    switchTab('panel');
+    renderPanel();
+    toast('success','🔓 Acceso concedido','Modo administrador activo. Puedes editar y borrar.');
+  }else{
+    toast('warn','PIN incorrecto','El PIN ingresado no es válido.');
+    document.getElementById('pin-input').value='';
+  }
+}
+
+function openEdit(id,e){
+  if(e)e.stopPropagation();
+  if(!adminMode)return;
+  var b=boletas.find(function(x){return x.id===id});if(!b)return;
+  editingId=id;
+  document.getElementById('e-banco').value=b.banco;
+  document.getElementById('e-fecha').value=b.fecha;
+  document.getElementById('e-monto').value=b.monto;
+  document.getElementById('e-representante').value=b.representante||'';
+  document.getElementById('e-correo').value=b.correo;
+  document.getElementById('e-status').value=b.status;
+  document.getElementById('edit-modal').classList.add('open');
+}
+function closeEdit(){document.getElementById('edit-modal').classList.remove('open');editingId=null}
+function saveEdit(){
+  if(!editingId)return;
+  var banco=document.getElementById('e-banco').value;
+  var fecha=document.getElementById('e-fecha').value;
+  var monto=document.getElementById('e-monto').value;
+  var rep=document.getElementById('e-representante').value.trim();
+  var correo=document.getElementById('e-correo').value;
+  var status=document.getElementById('e-status').value;
+  if(!fecha||!monto||parseFloat(monto)<=0||!correo||!correo.includes('@')){
+    toast('warn','Datos inválidos','Revisa fecha, monto y correo.');return;
+  }
+  var b=boletas.find(function(x){return x.id===editingId});
+  var upd={banco:banco,fecha:fecha,monto:parseFloat(monto).toFixed(2),
+    representante:rep||null,correo:correo,status:status};
+  // si pasa a confirmada/rechazada y no tenía resolución, marca hora
+  if(status!=='pending'&&b&&!b.resolveTime)upd.resolve_time=new Date().toISOString();
+  if(status==='pending')upd.resolve_time=null;
+  sb.from('boletas').update(upd).eq('id',editingId).then(function(res){
+    if(res.error){toast('warn','Error','No se pudo guardar.');console.error(res.error);return}
+    closeEdit();
+    toast('success','✏️ Solicitud actualizada','Los cambios se guardaron correctamente.');
+    refreshBoletas();
+  });
+}
+
+function doDelete(id,e){
+  if(e)e.stopPropagation();
+  if(!adminMode)return;
+  var b=boletas.find(function(x){return x.id===id});if(!b)return;
+  var label=(b.representante||'sin nombre')+' — L '+fmt(b.monto);
+  if(!confirm('¿Borrar esta solicitud de forma permanente?\n\n'+label+'\n'+b.banco+'\n\nEsta acción no se puede deshacer.'))return;
+  // borrar imágenes del storage si existen
+  var paths=[];
+  if(b.imagePath)paths.push(b.imagePath);
+  if(b.capturaPath)paths.push(b.capturaPath);
+  var doRow=function(){
+    sb.from('boletas').delete().eq('id',id).then(function(res){
+      if(res.error){toast('warn','Error','No se pudo borrar.');console.error(res.error);return}
+      toast('success','🗑 Solicitud borrada',label+' fue eliminada.');
+      refreshBoletas();
+    });
+  };
+  if(paths.length){
+    sb.storage.from(BUCKET).remove(paths).then(doRow);
+  }else{doRow()}
+}
+
 /* ─── INIT ───────────────────────────────────── */
 load();
 </script>
+<!-- ═══════════════ ADMIN ═══════════════ -->
+<button class="admin-toggle" id="admin-toggle" onclick="toggleAdmin()" title="Modo administrador">🔒</button>
+
+<div class="modal-back" id="pin-modal">
+  <div class="modal">
+    <h3>🔐 Acceso administrador</h3>
+    <div class="field">
+      <div class="label">Ingresa el PIN</div>
+      <input type="password" id="pin-input" class="pin-input" maxlength="6" inputmode="numeric" placeholder="••••" onkeydown="if(event.key==='Enter')checkPin()">
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closePin()">Cancelar</button>
+      <button class="modal-save" onclick="checkPin()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-back" id="edit-modal">
+  <div class="modal">
+    <h3>✏️ Editar solicitud</h3>
+    <div class="field">
+      <div class="label">Banco</div>
+      <select id="e-banco">
+        <option value="Banco de Occidente">Banco de Occidente</option>
+        <option value="Banco Atlántida">Banco Atlántida</option>
+      </select>
+    </div>
+    <div class="field">
+      <div class="label">Fecha</div>
+      <input type="date" id="e-fecha">
+    </div>
+    <div class="field">
+      <div class="label">Monto</div>
+      <input type="number" id="e-monto" step="0.01" min="0.01">
+    </div>
+    <div class="field">
+      <div class="label">Representante</div>
+      <input type="text" id="e-representante" placeholder="Opcional">
+    </div>
+    <div class="field">
+      <div class="label">Correo</div>
+      <input type="email" id="e-correo">
+    </div>
+    <div class="field">
+      <div class="label">Estado</div>
+      <select id="e-status">
+        <option value="pending">⏳ Pendiente</option>
+        <option value="confirmed">✅ Confirmada en banco</option>
+        <option value="rejected">❌ No encontrada</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeEdit()">Cancelar</button>
+      <button class="modal-save" onclick="saveEdit()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
