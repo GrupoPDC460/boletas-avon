@@ -167,6 +167,17 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
 .filter-btn.active{background:var(--avon);border-color:var(--avon);color:#fff}
 .filter-btn:hover:not(.active){border-color:var(--avon);color:var(--avon)}
 
+/* ── FILTRO DE FECHAS ── */
+.date-filter{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:12px}
+.date-filter .df-label{font-size:.74rem;font-weight:700;color:var(--avon);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:6px}
+.date-filter .df-group{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--text-muted)}
+.date-filter input[type="date"]{padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:'Poppins',sans-serif;font-size:.8rem;color-scheme:dark;outline:none}
+.date-filter input[type="date"]:focus{border-color:var(--avon)}
+.df-clear{padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Poppins',sans-serif;font-weight:600;font-size:.76rem;transition:all .2s}
+.df-clear:hover{border-color:var(--avon);color:var(--avon)}
+.df-count{margin-left:auto;font-size:.76rem;color:var(--text-muted);font-weight:600}
+@media(max-width:600px){.date-filter{flex-direction:column;align-items:stretch}.df-count{margin-left:0;text-align:center}}
+
 /* ── BOLETA CARD ── */
 .boleta-card{
   background:var(--surface);border:1px solid var(--border);
@@ -417,6 +428,14 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
     <button class="filter-btn" onclick="setFilter('pending',this)">⏳ Pendientes</button>
     <button class="filter-btn" onclick="setFilter('confirmed',this)">✅ Confirmadas</button>
     <button class="filter-btn" onclick="setFilter('rejected',this)">❌ No encontradas</button>
+  </div>
+
+  <div class="date-filter">
+    <span class="df-label">📅 Filtrar por fecha</span>
+    <div class="df-group">Desde <input type="date" id="date-from" onchange="renderPanel()"></div>
+    <div class="df-group">Hasta <input type="date" id="date-to" onchange="renderPanel()"></div>
+    <button class="df-clear" onclick="clearDateFilter()">Limpiar</button>
+    <span class="df-count" id="df-count"></span>
   </div>
 
   <div id="boletas-list"></div>
@@ -742,9 +761,30 @@ function setFilter(f,btn){
   renderPanel();
 }
 
+function clearDateFilter(){
+  var f=document.getElementById('date-from'),t=document.getElementById('date-to');
+  if(f)f.value='';if(t)t.value='';
+  renderPanel();
+}
+
 function renderPanel(){
   var list=document.getElementById('boletas-list');
-  var rows=boletas.filter(function(b){return filter==='all'||b.status===filter});
+  var fromEl=document.getElementById('date-from');
+  var toEl=document.getElementById('date-to');
+  var from=fromEl?fromEl.value:'';
+  var to=toEl?toEl.value:'';
+  var rows=boletas.filter(function(b){
+    if(filter!=='all'&&b.status!==filter)return false;
+    if(from&&b.fecha<from)return false;
+    if(to&&b.fecha>to)return false;
+    return true;
+  });
+  var cntEl=document.getElementById('df-count');
+  if(cntEl){
+    cntEl.textContent=(from||to)
+      ? rows.length+' boleta'+(rows.length!==1?'s':'')+' en el rango'
+      : '';
+  }
   if(!rows.length){
     list.innerHTML='<div class="empty-state"><span class="empty-icon">📭</span>No hay boletas en esta categoría</div>';
     return;
