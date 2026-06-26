@@ -474,7 +474,7 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
   </div>
 
   <div class="date-filter">
-    <span class="df-label">📅 Filtrar por fecha de carga</span>
+    <span class="df-label">📅 Filtrar por fecha de transferencia</span>
     <div class="df-group">Desde <input type="date" id="date-from" onchange="renderPanel()"></div>
     <div class="df-group">Hasta <input type="date" id="date-to" onchange="renderPanel()"></div>
     <button class="df-clear" onclick="clearDateFilter()">Limpiar</button>
@@ -507,7 +507,7 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
     <div class="dash-head">
       <div>
         <div class="dash-title">📊 Dashboard de mediciones</div>
-        <div class="dash-sub">Análisis por fecha de carga de la solicitud</div>
+        <div class="dash-sub">Análisis por fecha de transferencia (coincide con registros del banco)</div>
       </div>
     </div>
 
@@ -838,13 +838,13 @@ function getDateRange(){
   return {from:fromEl?fromEl.value:'',to:toEl?toEl.value:''};
 }
 function inRange(b,from,to){
-  if(from&&b.submitDate<from)return false;
-  if(to&&b.submitDate>to)return false;
+  if(from&&b.fecha<from)return false;
+  if(to&&b.fecha>to)return false;
   return true;
 }
 
 function updateStats(){
-  // Recuento dinámico: respeta el rango de fechas (por fecha de carga)
+  // Recuento dinámico: respeta el rango de fechas (por fecha de transferencia)
   var dr=getDateRange();
   var base=boletas.filter(function(b){return inRange(b,dr.from,dr.to)});
   var p=base.filter(function(b){return b.status==='pending'}).length;
@@ -1058,11 +1058,11 @@ function renderDash(){
 }
 
 function renderTrend(rows){
-  // agrupar por día (submitDate)
+  // agrupar por día (fecha de transferencia)
   var byDay={};
   rows.forEach(function(b){
-    if(!b.submitDate)return;
-    byDay[b.submitDate]=(byDay[b.submitDate]||0)+1;
+    if(!b.fecha)return;
+    byDay[b.fecha]=(byDay[b.fecha]||0)+1;
   });
   var days=Object.keys(byDay).sort();
   var svg=document.getElementById('trend-chart');
