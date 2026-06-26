@@ -299,6 +299,44 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
 .modal-save{background:linear-gradient(135deg,var(--avon),var(--avon-deep));color:#fff}
 .modal-cancel{background:transparent;border:1px solid var(--border);color:var(--text-muted)}
 .pin-input{letter-spacing:6px;text-align:center;font-size:1.3rem;font-weight:700}
+/* ═══ DASHBOARD (negro + neón) ═══ */
+#view-dash{padding:0}
+.dash-wrap{background:#05060a;border-radius:16px;padding:20px;border:1px solid #11141f}
+.dash-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}
+.dash-title{font-size:1.25rem;font-weight:800;color:#fff;text-shadow:0 0 12px rgba(233,30,99,.5)}
+.dash-sub{font-size:.78rem;color:#6b7280;margin-top:3px}
+.dash-datefilter{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px;padding:12px 14px;background:#0a0c14;border:1px solid #161b2b;border-radius:12px}
+.dash-datefilter input[type="date"]{padding:7px 10px;border-radius:8px;border:1px solid #1d2438;background:#05060a;color:#e8e6f0;font-family:'Poppins';font-size:.8rem;color-scheme:dark;outline:none}
+.dash-datefilter input[type="date"]:focus{border-color:#00e5ff;box-shadow:0 0 8px rgba(0,229,255,.4)}
+.dash-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.kpi-card{background:#0a0c14;border:1px solid #161b2b;border-radius:14px;padding:16px;position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi-pend::before{background:#f5a623;box-shadow:0 0 14px #f5a623}
+.kpi-conf::before{background:#22c55e;box-shadow:0 0 14px #22c55e}
+.kpi-rej::before{background:#ef4444;box-shadow:0 0 14px #ef4444}
+.kpi-tot::before{background:#00e5ff;box-shadow:0 0 14px #00e5ff}
+.kpi-lbl{font-size:.68rem;text-transform:uppercase;letter-spacing:.6px;color:#6b7280;font-weight:700}
+.kpi-val{font-size:1.9rem;font-weight:800;color:#fff;line-height:1.1;margin-top:6px}
+.kpi-pend .kpi-val{color:#f5a623;text-shadow:0 0 16px rgba(245,166,35,.5)}
+.kpi-conf .kpi-val{color:#22c55e;text-shadow:0 0 16px rgba(34,197,94,.5)}
+.kpi-rej .kpi-val{color:#ef4444;text-shadow:0 0 16px rgba(239,68,68,.5)}
+.kpi-tot .kpi-val{color:#00e5ff;text-shadow:0 0 16px rgba(0,229,255,.5)}
+.kpi-money{font-size:.82rem;color:#9ca3af;margin-top:4px;font-weight:600}
+.dash-panel{background:#0a0c14;border:1px solid #161b2b;border-radius:14px;padding:18px;margin-bottom:16px}
+.dash-panel-title{font-size:.92rem;font-weight:700;color:#e8e6f0;margin-bottom:16px}
+.chart-scroll{overflow-x:auto}
+.trend-svg{width:100%;min-width:320px;height:240px;display:block}
+.trend-empty{display:none;text-align:center;color:#6b7280;font-size:.85rem;padding:30px 0}
+.bank-bar-row{margin-bottom:16px}
+.bank-bar-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;font-size:.84rem}
+.bank-bar-name{color:#e8e6f0;font-weight:600;display:flex;align-items:center;gap:7px}
+.bank-bar-val{color:#9ca3af;font-weight:600}
+.bank-bar-track{height:14px;background:#11141f;border-radius:8px;overflow:hidden}
+.bank-bar-fill{height:100%;border-radius:8px;transition:width .6s ease}
+.bar-occ{background:linear-gradient(90deg,#0a2472,#3b5bdb);box-shadow:0 0 12px rgba(59,91,219,.6)}
+.bar-atl{background:linear-gradient(90deg,#c2185b,#e91e63);box-shadow:0 0 12px rgba(233,30,99,.6)}
+.bank-empty{text-align:center;color:#6b7280;font-size:.85rem;padding:20px 0}
+@media(max-width:640px){.dash-kpis{grid-template-columns:repeat(2,1fr)}.dash-datefilter{flex-direction:column;align-items:stretch}}
 </style>
 </head>
 <body>
@@ -326,6 +364,9 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
   <div class="tab" id="tab-notif" onclick="switchTab('notif')">
     🔔 Alertas
     <span class="badge badge-gold" id="badge-notif"></span>
+  </div>
+  <div class="tab" id="tab-dash" onclick="switchTab('dash')">
+    📊 Dashboard
   </div>
 </div>
 
@@ -433,7 +474,7 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
   </div>
 
   <div class="date-filter">
-    <span class="df-label">📅 Filtrar por fecha</span>
+    <span class="df-label">📅 Filtrar por fecha de carga</span>
     <div class="df-group">Desde <input type="date" id="date-from" onchange="renderPanel()"></div>
     <div class="df-group">Hasta <input type="date" id="date-to" onchange="renderPanel()"></div>
     <button class="df-clear" onclick="clearDateFilter()">Limpiar</button>
@@ -459,6 +500,48 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
   </div>
 
 </div>
+
+<!-- ═══════════════ DASHBOARD ═══════════════ -->
+<div class="view" id="view-dash">
+  <div class="dash-wrap">
+    <div class="dash-head">
+      <div>
+        <div class="dash-title">📊 Dashboard de mediciones</div>
+        <div class="dash-sub">Análisis por fecha de carga de la solicitud</div>
+      </div>
+    </div>
+
+    <div class="dash-datefilter">
+      <span class="df-label">📅 Periodo</span>
+      <div class="df-group">Desde <input type="date" id="dash-from" onchange="renderDash()"></div>
+      <div class="df-group">Hasta <input type="date" id="dash-to" onchange="renderDash()"></div>
+      <button class="df-clear" onclick="clearDashFilter()">Limpiar</button>
+      <span class="df-count" id="dash-range-count"></span>
+    </div>
+
+    <!-- KPIs montos por estado -->
+    <div class="dash-kpis">
+      <div class="kpi-card kpi-pend"><div class="kpi-lbl">Pendientes</div><div class="kpi-val" id="k-pend-n">0</div><div class="kpi-money" id="k-pend-m">L 0.00</div></div>
+      <div class="kpi-card kpi-conf"><div class="kpi-lbl">Confirmadas</div><div class="kpi-val" id="k-conf-n">0</div><div class="kpi-money" id="k-conf-m">L 0.00</div></div>
+      <div class="kpi-card kpi-rej"><div class="kpi-lbl">No encontradas</div><div class="kpi-val" id="k-rej-n">0</div><div class="kpi-money" id="k-rej-m">L 0.00</div></div>
+      <div class="kpi-card kpi-tot"><div class="kpi-lbl">Monto total</div><div class="kpi-val" id="k-tot-n">0</div><div class="kpi-money" id="k-tot-m">L 0.00</div></div>
+    </div>
+
+    <!-- Tendencia por día -->
+    <div class="dash-panel">
+      <div class="dash-panel-title">📈 Tendencia de boletas por día</div>
+      <div class="chart-scroll"><svg id="trend-chart" class="trend-svg" preserveAspectRatio="xMinYMin meet"></svg></div>
+      <div class="trend-empty" id="trend-empty">Sin datos en este periodo</div>
+    </div>
+
+    <!-- Por banco -->
+    <div class="dash-panel">
+      <div class="dash-panel-title">🏦 Boletas por banco</div>
+      <div id="bank-bars"></div>
+    </div>
+  </div>
+</div>
+
 </div><!-- /main -->
 
 <script>
@@ -497,6 +580,8 @@ function rowToBoleta(r){
     capturaUrl:pubUrl(r.captura_path),
     status:r.status,
     submitTime:fmtTime(r.submit_time),
+    submitISO:r.submit_time,
+    submitDate:(r.submit_time||'').slice(0,10),
     resolveTime:r.resolve_time?fmtTime(r.resolve_time):null
   };
 }
@@ -572,6 +657,7 @@ function refreshBoletas(){
     updateBadges();
     var av=document.querySelector('.view.active');
     if(av&&av.id==='view-panel'){renderPanel();updateStats()}
+    if(av&&av.id==='view-dash'){renderDash()}
     setSS('ok','Actualizado '+nowHM());
   });
 }
@@ -605,7 +691,7 @@ function uploadImage(file,prefix){
 
 /* ─── TABS ───────────────────────────────────── */
 function switchTab(t){
-  ['form','panel','notif'].forEach(function(v){
+  ['form','panel','notif','dash'].forEach(function(v){
     document.getElementById('view-'+v).classList.remove('active');
     document.getElementById('tab-'+v).classList.remove('active');
   });
@@ -613,6 +699,7 @@ function switchTab(t){
   document.getElementById('tab-'+t).classList.add('active');
   if(t==='panel'){renderPanel();updateStats()}
   if(t==='notif'){renderNotifs();markNotifsRead()}
+  if(t==='dash'){renderDash()}
 }
 
 /* ─── BADGES ─────────────────────────────────── */
@@ -745,14 +832,28 @@ function resetForm(){
 /* ─── PANEL ──────────────────────────────────── */
 function fmt(n){return parseFloat(n).toLocaleString('es',{minimumFractionDigits:2,maximumFractionDigits:2})}
 
+function getDateRange(){
+  var fromEl=document.getElementById('date-from');
+  var toEl=document.getElementById('date-to');
+  return {from:fromEl?fromEl.value:'',to:toEl?toEl.value:''};
+}
+function inRange(b,from,to){
+  if(from&&b.submitDate<from)return false;
+  if(to&&b.submitDate>to)return false;
+  return true;
+}
+
 function updateStats(){
-  var p=boletas.filter(function(b){return b.status==='pending'}).length;
-  var c=boletas.filter(function(b){return b.status==='confirmed'}).length;
-  var r=boletas.filter(function(b){return b.status==='rejected'}).length;
+  // Recuento dinámico: respeta el rango de fechas (por fecha de carga)
+  var dr=getDateRange();
+  var base=boletas.filter(function(b){return inRange(b,dr.from,dr.to)});
+  var p=base.filter(function(b){return b.status==='pending'}).length;
+  var c=base.filter(function(b){return b.status==='confirmed'}).length;
+  var r=base.filter(function(b){return b.status==='rejected'}).length;
   document.getElementById('cnt-pend').textContent=p;
   document.getElementById('cnt-conf').textContent=c;
   document.getElementById('cnt-rej').textContent=r;
-  document.getElementById('cnt-tot').textContent=boletas.length;
+  document.getElementById('cnt-tot').textContent=base.length;
   updateBadges();
 }
 
@@ -771,15 +872,11 @@ function clearDateFilter(){
 
 function renderPanel(){
   var list=document.getElementById('boletas-list');
-  var fromEl=document.getElementById('date-from');
-  var toEl=document.getElementById('date-to');
-  var from=fromEl?fromEl.value:'';
-  var to=toEl?toEl.value:'';
+  var dr=getDateRange();
+  var from=dr.from,to=dr.to;
   var rows=boletas.filter(function(b){
     if(filter!=='all'&&b.status!==filter)return false;
-    if(from&&b.fecha<from)return false;
-    if(to&&b.fecha>to)return false;
-    return true;
+    return inRange(b,from,to);
   });
   var cntEl=document.getElementById('df-count');
   if(cntEl){
@@ -917,6 +1014,117 @@ function doCaptura(id,e){
     toast('warn','Error','No se pudo subir la captura.');
     console.error('captura error',err);
   });
+}
+
+/* ─── DASHBOARD ──────────────────────────────── */
+function clearDashFilter(){
+  var f=document.getElementById('dash-from'),t=document.getElementById('dash-to');
+  if(f)f.value='';if(t)t.value='';
+  renderDash();
+}
+function dashRange(){
+  var f=document.getElementById('dash-from'),t=document.getElementById('dash-to');
+  return {from:f?f.value:'',to:t?t.value:''};
+}
+function money(n){return 'L '+parseFloat(n||0).toLocaleString('es',{minimumFractionDigits:2,maximumFractionDigits:2})}
+
+function renderDash(){
+  var dr=dashRange();
+  var rows=boletas.filter(function(b){return inRange(b,dr.from,dr.to)});
+
+  // contador de rango
+  var rc=document.getElementById('dash-range-count');
+  if(rc)rc.textContent=(dr.from||dr.to)?rows.length+' boleta'+(rows.length!==1?'s':'')+' en el periodo':rows.length+' boletas (todo)';
+
+  // KPIs montos por estado
+  var sums={pending:{n:0,m:0},confirmed:{n:0,m:0},rejected:{n:0,m:0}};
+  var totM=0;
+  rows.forEach(function(b){
+    var m=parseFloat(b.monto)||0;
+    if(sums[b.status]){sums[b.status].n++;sums[b.status].m+=m}
+    totM+=m;
+  });
+  document.getElementById('k-pend-n').textContent=sums.pending.n;
+  document.getElementById('k-pend-m').textContent=money(sums.pending.m);
+  document.getElementById('k-conf-n').textContent=sums.confirmed.n;
+  document.getElementById('k-conf-m').textContent=money(sums.confirmed.m);
+  document.getElementById('k-rej-n').textContent=sums.rejected.n;
+  document.getElementById('k-rej-m').textContent=money(sums.rejected.m);
+  document.getElementById('k-tot-n').textContent=rows.length;
+  document.getElementById('k-tot-m').textContent=money(totM);
+
+  renderTrend(rows);
+  renderBankBars(rows);
+}
+
+function renderTrend(rows){
+  // agrupar por día (submitDate)
+  var byDay={};
+  rows.forEach(function(b){
+    if(!b.submitDate)return;
+    byDay[b.submitDate]=(byDay[b.submitDate]||0)+1;
+  });
+  var days=Object.keys(byDay).sort();
+  var svg=document.getElementById('trend-chart');
+  var emptyEl=document.getElementById('trend-empty');
+  if(days.length<1){svg.innerHTML='';emptyEl.style.display='block';return}
+  emptyEl.style.display='none';
+
+  var W=Math.max(320,days.length*70), H=240, padL=40,padR=20,padT=20,padB=46;
+  var maxV=Math.max.apply(null,days.map(function(d){return byDay[d]}));
+  maxV=Math.max(maxV,1);
+  var plotW=W-padL-padR, plotH=H-padT-padB;
+  var x=function(i){return padL+(days.length===1?plotW/2:(i/(days.length-1))*plotW)};
+  var y=function(v){return padT+plotH-(v/maxV)*plotH};
+
+  var grid='';
+  for(var g=0;g<=4;g++){
+    var gv=Math.round(maxV*g/4), gy=y(gv);
+    grid+='<line x1="'+padL+'" y1="'+gy+'" x2="'+(W-padR)+'" y2="'+gy+'" stroke="#161b2b" stroke-width="1"/>';
+    grid+='<text x="'+(padL-8)+'" y="'+(gy+4)+'" fill="#6b7280" font-size="10" text-anchor="end">'+gv+'</text>';
+  }
+  var pts=days.map(function(d,i){return x(i)+','+y(byDay[d])}).join(' ');
+  // área bajo la línea
+  var area='M'+x(0)+','+(padT+plotH)+' L'+days.map(function(d,i){return x(i)+','+y(byDay[d])}).join(' L')+' L'+x(days.length-1)+','+(padT+plotH)+' Z';
+
+  var dots='',labels='';
+  days.forEach(function(d,i){
+    dots+='<circle cx="'+x(i)+'" cy="'+y(byDay[d])+'" r="4" fill="#00e5ff" stroke="#05060a" stroke-width="2"/>';
+    dots+='<text x="'+x(i)+'" y="'+(y(byDay[d])-10)+'" fill="#00e5ff" font-size="11" font-weight="700" text-anchor="middle">'+byDay[d]+'</text>';
+    var lbl=d.slice(8,10)+'/'+d.slice(5,7);
+    labels+='<text x="'+x(i)+'" y="'+(H-22)+'" fill="#9ca3af" font-size="10" text-anchor="middle">'+lbl+'</text>';
+  });
+
+  svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  svg.innerHTML=
+    '<defs><linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">'+
+    '<stop offset="0%" stop-color="#00e5ff" stop-opacity="0.35"/>'+
+    '<stop offset="100%" stop-color="#00e5ff" stop-opacity="0"/></linearGradient></defs>'+
+    grid+
+    '<path d="'+area+'" fill="url(#trendGrad)"/>'+
+    '<polyline points="'+pts+'" fill="none" stroke="#00e5ff" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" style="filter:drop-shadow(0 0 6px rgba(0,229,255,.7))"/>'+
+    dots+labels;
+}
+
+function renderBankBars(rows){
+  var banks={};
+  rows.forEach(function(b){banks[b.banco]=(banks[b.banco]||0)+1});
+  var el=document.getElementById('bank-bars');
+  var names=Object.keys(banks);
+  if(!names.length){el.innerHTML='<div class="bank-empty">Sin datos en este periodo</div>';return}
+  var total=rows.length;
+  // ordenar de mayor a menor
+  names.sort(function(a,b){return banks[b]-banks[a]});
+  el.innerHTML=names.map(function(name){
+    var n=banks[name],pct=Math.round((n/total)*100);
+    var cls=name.indexOf('Occidente')>=0?'bar-occ':'bar-atl';
+    var icon=name.indexOf('Occidente')>=0?'🔵':'🩷';
+    return '<div class="bank-bar-row">'+
+      '<div class="bank-bar-head"><span class="bank-bar-name">'+icon+' '+name+'</span>'+
+      '<span class="bank-bar-val">'+n+' ('+pct+'%)</span></div>'+
+      '<div class="bank-bar-track"><div class="bank-bar-fill '+cls+'" style="width:'+pct+'%"></div></div>'+
+    '</div>';
+  }).join('');
 }
 
 /* ─── LIGHTBOX ───────────────────────────────── */
