@@ -190,6 +190,9 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
 .bank-badge{padding:3px 10px;border-radius:20px;font-size:.67rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;flex-shrink:0;white-space:nowrap}
 .bank-occ{background:rgba(10,36,114,.4);color:#93b4ff;border:1px solid rgba(80,120,255,.3)}
 .bank-atl{background:rgba(5,46,22,.5);color:#4ade80;border:1px solid rgba(22,101,52,.4)}
+.bank-gen{background:rgba(124,58,237,.18);color:#c4b5fd;border:1px solid rgba(139,92,246,.35)}
+.field select#pais{width:100%}
+.cur-tag{font-weight:600;color:var(--avon);margin-left:4px}
 .boleta-info{flex:1;min-width:0}
 .boleta-rep{font-size:.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .boleta-meta{font-size:.72rem;color:var(--text-muted);margin-top:2px}
@@ -335,6 +338,7 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
 .bank-bar-fill{height:100%;border-radius:8px;transition:width .6s ease}
 .bar-occ{background:linear-gradient(90deg,#0a2472,#3b5bdb);box-shadow:0 0 12px rgba(59,91,219,.6)}
 .bar-atl{background:linear-gradient(90deg,#c2185b,#e91e63);box-shadow:0 0 12px rgba(233,30,99,.6)}
+.bar-gen{background:linear-gradient(90deg,#5b21b6,#8b5cf6);box-shadow:0 0 12px rgba(139,92,246,.6)}
 .bank-empty{text-align:center;color:#6b7280;font-size:.85rem;padding:20px 0}
 @media(max-width:640px){.dash-kpis{grid-template-columns:repeat(2,1fr)}.dash-datefilter{flex-direction:column;align-items:stretch}}
 </style>
@@ -386,23 +390,13 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
     <div class="card-heading">📋 Datos de la boleta</div>
 
     <div class="field">
+      <div class="label">País <span class="req">*</span></div>
+      <select id="pais" onchange="onPais()"></select>
+    </div>
+
+    <div class="field">
       <div class="label">Banco de procedencia <span class="req">*</span></div>
-      <div class="radio-grid">
-        <label class="radio-opt" id="opt-occ">
-          <input type="radio" name="banco" value="Banco de Occidente" onchange="selectBanco(this)">
-          <div>
-            <div class="radio-label">🏦 Banco de Occidente</div>
-            <div class="radio-sub">Honduras · Guatemala</div>
-          </div>
-        </label>
-        <label class="radio-opt" id="opt-atl">
-          <input type="radio" name="banco" value="Banco Atlántida" onchange="selectBanco(this)">
-          <div>
-            <div class="radio-label">🏦 Banco Atlántida</div>
-            <div class="radio-sub">Honduras · Centroamérica</div>
-          </div>
-        </label>
-      </div>
+      <div class="radio-grid" id="banco-grid"></div>
     </div>
 
     <div class="field">
@@ -411,7 +405,7 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
     </div>
 
     <div class="field">
-      <div class="label">Monto <span class="req">*</span></div>
+      <div class="label">Monto <span class="cur-tag" id="monto-cur">(L)</span> <span class="req">*</span></div>
       <input type="number" id="monto" placeholder="0.00" step="0.01" min="0.01">
     </div>
 
@@ -554,6 +548,55 @@ var SB_URL='https://fbhkkprnpabwapgetbad.supabase.co';
 var SB_KEY='sb_publishable_vl7RWFKvyBTJYVSYclo6EQ_Mt64ibRj';
 var BUCKET='comprobantes';
 var sb=window.supabase.createClient(SB_URL,SB_KEY);
+
+/* ─── CATÁLOGO DE BANCOS POR PAÍS (según Hub Avon · Cuentas Bancarias; solo bancos, sin colectores) ─── */
+var PAISES=[
+  {n:'Guatemala',cur:'Q',bancos:['Banco Industrial','BAC Reformador','G&T Continental','Banrural','Citibank']},
+  {n:'El Salvador',cur:'$',bancos:['Banco Agrícola','Banco Promérica','Citibank','Banco Cuscatlán','BAC Reformador']},
+  {n:'Honduras',cur:'L',bancos:['Banco de Occidente','Banco Atlántida','Citibank']},
+  {n:'Nicaragua',cur:'C$',bancos:['BAC Reformador','Banco Promérica','Lafise']},
+  {n:'Panamá',cur:'$',bancos:['Banco General','Banco Nacional','Caja de ahorros','Citibank','BAC']},
+  {n:'República Dominicana',cur:'RD$',bancos:['Banco Popular Dominicano','Citibank','Banreservas','BHD']}
+];
+function ea(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+/* Valor guardado en la columna banco: los 2 bancos históricos de Honduras se guardan igual que antes;
+   el resto se guarda como "Banco (País)" para distinguir, p. ej., Citibank de cada país. */
+function bancoValue(pais,banco){
+  if(pais==='Honduras'&&(banco==='Banco de Occidente'||banco==='Banco Atlántida'))return banco;
+  return banco+' ('+pais+')';
+}
+function bancoInfo(v){
+  var m=/^(.*) \((.+)\)$/.exec(v||'');
+  var banco=m?m[1]:(v||''), pais=m?m[2]:'Honduras';
+  var p=PAISES.filter(function(x){return x.n===pais})[0]||PAISES[2];
+  return {banco:banco,pais:p.n,cur:p.cur};
+}
+function bankClass(v){return v&&v.indexOf('Occidente')>=0?'bank-occ':(v&&v.indexOf('Atlántida')>=0?'bank-atl':'bank-gen')}
+function barClass(v){return v&&v.indexOf('Occidente')>=0?'bar-occ':(v&&v.indexOf('Atlántida')>=0?'bar-atl':'bar-gen')}
+function mon(v,n){return bancoInfo(v).cur+' '+fmt(n)}
+function initPaises(){
+  var sel=document.getElementById('pais');
+  sel.innerHTML=PAISES.map(function(p){return '<option value="'+ea(p.n)+'">'+ea(p.n)+'</option>'}).join('');
+  sel.value='Honduras';
+  onPais();
+}
+function fillEditBancos(){
+  var eb=document.getElementById('e-banco');
+  if(!eb||eb.options.length)return;
+  eb.innerHTML=PAISES.map(function(p){
+    return '<optgroup label="'+ea(p.n)+'">'+p.bancos.map(function(b){
+      var v=bancoValue(p.n,b);return '<option value="'+ea(v)+'">'+ea(b)+'</option>'}).join('')+'</optgroup>';
+  }).join('');
+}
+function onPais(){
+  var name=document.getElementById('pais').value;
+  var p=PAISES.filter(function(x){return x.n===name})[0]||PAISES[2];
+  document.getElementById('banco-grid').innerHTML=p.bancos.map(function(b){
+    return '<label class="radio-opt"><input type="radio" name="banco" value="'+ea(bancoValue(p.n,b))+'" onchange="selectBanco(this)">'+
+      '<div><div class="radio-label">🏦 '+ea(b)+'</div><div class="radio-sub">'+ea(p.n)+' · '+ea(p.cur)+'</div></div></label>';
+  }).join('');
+  document.getElementById('monto-cur').textContent='('+p.cur+')';
+}
 
 /* ─── STATE ─────────────────────────────────── */
 var boletas=[],notifs=[],filter='all',expandedId=null,fileData=null,fileDataUrl=null;
@@ -782,7 +825,7 @@ function submitForm(){
   var fecha=document.getElementById('fecha').value;
   var monto=document.getElementById('monto').value;
   var correo=document.getElementById('correo').value;
-  if(!banco){toast('warn','Banco requerido','Selecciona Banco de Occidente o Banco Atlántida.');return}
+  if(!banco){toast('warn','Banco requerido','Selecciona el país y el banco de procedencia.');return}
   if(!fecha){toast('warn','Fecha requerida','Ingresa la fecha de la boleta.');return}
   if(!monto||parseFloat(monto)<=0){toast('warn','Monto inválido','Ingresa un monto mayor a cero.');return}
   if(!correo||!correo.includes('@')){toast('warn','Correo inválido','Ingresa un correo electrónico válido.');return}
@@ -804,7 +847,7 @@ function submitForm(){
   }).then(function(res){
     if(res.error)throw res.error;
     return addNotif('new','Nueva solicitud de confirmación',
-      'L '+fmt(montoF)+' · '+banco.value+(rep?' — '+rep:'')+' · '+correo);
+      mon(banco.value,montoF)+' · '+bancoInfo(banco.value).banco+' ('+bancoInfo(banco.value).pais+')'+(rep?' — '+rep:'')+' · '+correo);
   }).then(function(){
     btn.disabled=false;btn.textContent='📨 Enviar solicitud de confirmación';
     resetForm();
@@ -891,7 +934,7 @@ function renderPanel(){
   list.innerHTML=rows.map(function(b){
     var stC=b.status==='pending'?'st-pending':b.status==='confirmed'?'st-confirmed':'st-rejected';
     var stT=b.status==='pending'?'⏳ Pendiente':b.status==='confirmed'?'✅ En banco':'❌ No encontrada';
-    var bkC=b.banco.includes('Occidente')?'bank-occ':'bank-atl';
+    var bkC=bankClass(b.banco);var bi=bancoInfo(b.banco);
     var isExp=expandedId===b.id;
 
     var capHtml=b.capturaUrl
@@ -925,13 +968,13 @@ function renderPanel(){
 
     return '<div class="boleta-card'+(isExp?' expanded':'')+'" id="bc-'+b.id+'" onclick="toggle('+b.id+',event)">'+
       '<div class="boleta-header">'+
-        '<span class="bank-badge '+bkC+'">'+b.banco+'</span>'+
+        '<span class="bank-badge '+bkC+'">'+ea(bi.banco)+'</span>'+
         '<div class="boleta-info">'+
           '<div class="boleta-rep">'+(b.representante||'<span style="opacity:.5;font-style:italic">Sin nombre</span>')+'</div>'+
-          '<div class="boleta-meta">'+b.fecha+' · '+b.correo+'</div>'+
+          '<div class="boleta-meta">'+ea(bi.pais)+' · '+b.fecha+' · '+b.correo+'</div>'+
         '</div>'+
         '<div class="boleta-right">'+
-          '<div class="boleta-amount">L '+fmt(b.monto)+'</div>'+
+          '<div class="boleta-amount">'+mon(b.banco,b.monto)+'</div>'+
           '<span class="status-badge '+stC+'">'+stT+'</span>'+
         '</div>'+
         '<div class="chev'+(isExp?' open':'')+'">▾</div>'+
@@ -939,8 +982,8 @@ function renderPanel(){
       '<div class="boleta-body'+(isExp?' open':'')+'" id="bb-'+b.id+'">'+
         '<div class="detail-grid">'+
           '<div><div class="d-lbl">Enviada</div><div class="d-val">'+b.submitTime+'</div></div>'+
-          '<div><div class="d-lbl">Monto</div><div class="d-val" style="color:var(--avon);font-weight:700">L '+fmt(b.monto)+'</div></div>'+
-          '<div><div class="d-lbl">Banco</div><div class="d-val">'+b.banco+'</div></div>'+
+          '<div><div class="d-lbl">Monto</div><div class="d-val" style="color:var(--avon);font-weight:700">'+mon(b.banco,b.monto)+'</div></div>'+
+          '<div><div class="d-lbl">Banco</div><div class="d-val">'+ea(bi.banco)+' · '+ea(bi.pais)+'</div></div>'+
           '<div><div class="d-lbl">Correo</div><div class="d-val" style="font-size:.78rem">'+b.correo+'</div></div>'+
         '</div>'+
         '<div class="comprobante-wrap" id="cw-'+b.id+'">'+imgArea+'</div>'+
@@ -980,8 +1023,8 @@ function doConfirm(id,e){
   var b=boletas.find(function(x){return x.id===id});if(!b)return;
   sb.from('boletas').update({status:'confirmed',resolve_time:new Date().toISOString()}).eq('id',id).then(function(res){
     if(res.error){toast('warn','Error','No se pudo confirmar.');return}
-    addNotif('confirmed','Confirmada en banco','L '+fmt(b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:'')+' · '+b.correo);
-    toast('success','✅ Boleta confirmada en banco','L '+fmt(b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:''));
+    addNotif('confirmed','Confirmada en banco',mon(b.banco,b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:'')+' · '+b.correo);
+    toast('success','✅ Boleta confirmada en banco',mon(b.banco,b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:''));
     refreshBoletas();
   });
 }
@@ -992,8 +1035,8 @@ function doReject(id,e){
   var b=boletas.find(function(x){return x.id===id});if(!b)return;
   sb.from('boletas').update({status:'rejected',resolve_time:new Date().toISOString()}).eq('id',id).then(function(res){
     if(res.error){toast('warn','Error','No se pudo actualizar.');return}
-    addNotif('rejected','No encontrada en banco','L '+fmt(b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:'')+' · '+b.correo);
-    toast('warn','⚠️ No encontrada en banco','L '+fmt(b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:''));
+    addNotif('rejected','No encontrada en banco',mon(b.banco,b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:'')+' · '+b.correo);
+    toast('warn','⚠️ No encontrada en banco',mon(b.banco,b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:''));
     refreshBoletas();
   });
 }
@@ -1026,7 +1069,11 @@ function dashRange(){
   var f=document.getElementById('dash-from'),t=document.getElementById('dash-to');
   return {from:f?f.value:'',to:t?t.value:''};
 }
-function money(n){return 'L '+parseFloat(n||0).toLocaleString('es',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function money(map){
+  var k=Object.keys(map||{}).filter(function(c){return map[c]>0});
+  if(!k.length)return 'L 0.00';
+  return k.map(function(c){return c+' '+fmt(map[c])}).join(' · ');
+}
 
 function renderDash(){
   var dr=dashRange();
@@ -1037,12 +1084,12 @@ function renderDash(){
   if(rc)rc.textContent=(dr.from||dr.to)?rows.length+' boleta'+(rows.length!==1?'s':'')+' en el periodo':rows.length+' boletas (todo)';
 
   // KPIs montos por estado
-  var sums={pending:{n:0,m:0},confirmed:{n:0,m:0},rejected:{n:0,m:0}};
-  var totM=0;
+  var sums={pending:{n:0,m:{}},confirmed:{n:0,m:{}},rejected:{n:0,m:{}}};
+  var totM={};
   rows.forEach(function(b){
-    var m=parseFloat(b.monto)||0;
-    if(sums[b.status]){sums[b.status].n++;sums[b.status].m+=m}
-    totM+=m;
+    var m=parseFloat(b.monto)||0, c=bancoInfo(b.banco).cur;
+    if(sums[b.status]){sums[b.status].n++;sums[b.status].m[c]=(sums[b.status].m[c]||0)+m}
+    totM[c]=(totM[c]||0)+m;
   });
   document.getElementById('k-pend-n').textContent=sums.pending.n;
   document.getElementById('k-pend-m').textContent=money(sums.pending.m);
@@ -1117,10 +1164,11 @@ function renderBankBars(rows){
   names.sort(function(a,b){return banks[b]-banks[a]});
   el.innerHTML=names.map(function(name){
     var n=banks[name],pct=Math.round((n/total)*100);
-    var cls=name.indexOf('Occidente')>=0?'bar-occ':'bar-atl';
-    var icon=name.indexOf('Occidente')>=0?'🔵':'🩷';
+    var cls=barClass(name);
+    var icon=name.indexOf('Occidente')>=0?'🔵':(name.indexOf('Atlántida')>=0?'🩷':'🏦');
+    var bi=bancoInfo(name);
     return '<div class="bank-bar-row">'+
-      '<div class="bank-bar-head"><span class="bank-bar-name">'+icon+' '+name+'</span>'+
+      '<div class="bank-bar-head"><span class="bank-bar-name">'+icon+' '+ea(bi.banco)+' · '+ea(bi.pais)+'</span>'+
       '<span class="bank-bar-val">'+n+' ('+pct+'%)</span></div>'+
       '<div class="bank-bar-track"><div class="bank-bar-fill '+cls+'" style="width:'+pct+'%"></div></div>'+
     '</div>';
@@ -1182,7 +1230,12 @@ function openEdit(id,e){
   if(!adminMode)return;
   var b=boletas.find(function(x){return x.id===id});if(!b)return;
   editingId=id;
-  document.getElementById('e-banco').value=b.banco;
+  fillEditBancos();
+  var eb=document.getElementById('e-banco');
+  if(!Array.prototype.some.call(eb.options,function(o){return o.value===b.banco})){
+    var op=document.createElement('option');op.value=b.banco;op.textContent=b.banco;eb.appendChild(op);
+  }
+  eb.value=b.banco;
   document.getElementById('e-fecha').value=b.fecha;
   document.getElementById('e-monto').value=b.monto;
   document.getElementById('e-representante').value=b.representante||'';
@@ -1240,6 +1293,8 @@ function doDelete(id,e){
 
 /* ─── INIT ───────────────────────────────────── */
 load();
+
+initPaises();
 </script>
 <!-- ═══════════════ ADMIN ═══════════════ -->
 <button class="admin-toggle" id="admin-toggle" onclick="toggleAdmin()" title="Modo administrador">🔒</button>
@@ -1263,10 +1318,7 @@ load();
     <h3>✏️ Editar solicitud</h3>
     <div class="field">
       <div class="label">Banco</div>
-      <select id="e-banco">
-        <option value="Banco de Occidente">Banco de Occidente</option>
-        <option value="Banco Atlántida">Banco Atlántida</option>
-      </select>
+      <select id="e-banco"></select>
     </div>
     <div class="field">
       <div class="label">Fecha</div>
