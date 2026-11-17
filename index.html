@@ -818,6 +818,8 @@ body.admin-on .admin-only{display:inline-block}
 .d-leg b{margin-left:auto;font-size:1.05rem;font-weight:900;color:var(--pdc)}
 .d-leg em{font-style:normal;font-size:.74rem;color:var(--text-muted);min-width:34px;text-align:right}
 @media(prefers-reduced-motion:reduce){.g-wave1,.g-wave2{animation:none}.g-level,.dbar-track .seg,.dtrend .tline,.dtrend .tarea,.donut-svg .dseg,.gauge-svg #gRingBar{transition:none}}
+
+.oper-reabrir{margin-top:12px}
 </style>
 </head>
 <body>
@@ -1204,7 +1206,7 @@ function onPais(){
 /* ─── STATE ─────────────────────────────────── */
 var boletas=[],notifs=[],filter='all',expandedId=null,fileData=null,fileDataUrl=null;
 var prevPending=0,prevConfirmed=0,realtimeReady=false;
-var ADMIN_PIN='2589',adminMode=false,editingId=null;
+var adminMode=false,editingId=null;
 
 /* ─── HELPERS DE MAPEO (fila DB <-> objeto UI) ── */
 function pubUrl(path){
@@ -1406,15 +1408,16 @@ function toast(type,title,msg){
 }
 
 /* ─── NOTIFS ─────────────────────────────────── */
-function addNotif(type,title,msg){
-  return sb.from('notifs').insert({type:type,title:title,msg:msg,read:false}).then(function(){});
-}
 function clearNotifs(){
-  var ids=notifs.map(function(n){return n.id});
-  if(!ids.length){renderNotifs();return}
-  sb.from('notifs').delete().in('id',ids).then(function(){
-    notifs=[];renderNotifs();
-    document.getElementById('badge-notif').style.display='none';
+  if(!esAdmin()){toast('warn','Solo administradores','Inicia sesión como administrador para limpiar el historial.');return}
+  if(!notifs.length){renderNotifs();return}
+  if(!confirm('¿Limpiar todo el historial?\n\nQuedará solo un registro indicando quién lo limpió.'))return;
+  sb.rpc('admin_limpiar_historial',adminCred()).then(function(res){
+    if(res.error){toast('warn','Error','No se pudo limpiar el historial.');console.error(res.error);return}
+    var d=res.data||{};
+    if(!d.ok){adminErr(d);return}
+    toast('success','🗑 Historial limpiado',d.eliminados+' movimientos eliminados.');
+    refreshNotifs();
   });
 }
 function renderNotifs(){
@@ -1537,8 +1540,7 @@ function submitForm(){
   }).then(function(res){
     if(res.error)throw res.error;
     nuevaMarca=(res.data&&res.data.id)?marcaUnica(res.data.id):'';
-    return addNotif('new','Nueva solicitud de confirmación',
-      mon(banco.value,montoF)+' · '+bancoInfo(banco.value).banco+' ('+bancoInfo(banco.value).pais+')'+(rep?' — '+rep:'')+' · Cód. '+codRep+' · Zona '+zonaRep+(numBol?' · Boleta #'+numBol:'')+(nuevaMarca?' · '+nuevaMarca:'')+' · '+correo);
+    /* el historial de "nueva solicitud" lo registra el servidor */
   }).then(function(){
     btn.disabled=false;btn.textContent='📨 Enviar solicitud de confirmación';
     resetForm();
@@ -1704,60 +1706,110 @@ function toggle(id,e){
   renderPanel();
 }
 
-var claveOK=false;
-var CLAVE_GESTION='Avon2026';
-function requireClave(){
-  if(claveOK)return true;
-  var v=prompt('🔑 Para dar respuesta a la solicitud, ingresa la clave de gestión:');
-  if(v===null)return false; // canceló
-  if(v===CLAVE_GESTION){
-    claveOK=true;
+/* ─── CLAVE AVON (Gestión) y credenciales de administrador: se validan en el servidor ─── */
+var avonClave='';try{avonClave=sessionStorage.getItem('avon_clave')||''}catch(e){}
+var avonCb=null;
+function avonSave(){try{if(avonClave)sessionStorage.setItem('avon_clave',avonClave);else sessionStorage.removeItem('avon_clave')}catch(e){}}
+function esAdmin(){return !!(opSes&&opSes.rol==='admin')}
+function gestionCred(){return esAdmin()?{p_clave:opSes.clave,p_email:opSes.email}:{p_clave:avonClave,p_email:null}}
+function adminCred(){return {p_email:opSes.email,p_clave:opSes.clave}}
+function requireClave(cb){
+  if(esAdmin()||avonClave){cb();return}
+  avonAsk(cb);
+}
+function avonAsk(cb){
+  avonCb=cb||null;
+  document.getElementById('avon-error').textContent='';
+  document.getElementById('avon-clave').value='';
+  document.getElementById('avon-modal').classList.add('open');
+  setTimeout(function(){document.getElementById('avon-clave').focus()},100);
+}
+function avonClose(){document.getElementById('avon-modal').classList.remove('open');avonCb=null}
+function avonSubmit(){
+  var cl=document.getElementById('avon-clave').value;
+  var err=document.getElementById('avon-error'),btn=document.getElementById('avon-btn');
+  if(!cl){err.textContent='Escribe la clave Avon.';return}
+  btn.disabled=true;btn.textContent='Verificando...';err.textContent='';
+  sb.rpc('gestion_login',{p_clave:cl}).then(function(res){
+    btn.disabled=false;btn.textContent='Entrar';
+    if(res.error){err.textContent='No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.';console.error(res.error);return}
+    var d=res.data;
+    if(!d||!d.ok){
+      err.textContent=(d&&d.error==='DEMASIADOS_INTENTOS')?'Demasiados intentos fallidos. Espera unos minutos e inténtalo de nuevo.':'Clave incorrecta.';
+      document.getElementById('avon-clave').value='';return;
+    }
+    avonClave=cl;avonSave();
+    var f=avonCb;avonClose();
     toast('success','🔓 Clave correcta','Ya puedes confirmar o rechazar boletas en esta sesión.');
-    return true;
-  }
-  toast('warn','Clave incorrecta','La clave ingresada no es válida. Inténtalo de nuevo.');
-  return false;
+    if(f)f();
+  });
+}
+function sesionAdminInvalida(){
+  opSes=null;opSave();setAdminMode(false);renderOper();renderPanel();
+  toast('warn','Sesión no válida','Vuelve a iniciar sesión.');opLoginOpen();
+}
+function gestionErr(d){
+  var m={
+    CREDENCIALES_INVALIDAS:function(){
+      if(esAdmin()){sesionAdminInvalida()}
+      else{avonClave='';avonSave();toast('warn','Clave Avon incorrecta','Vuelve a ingresarla para continuar.')}
+    },
+    YA_RESUELTA:function(){toast('warn','Boleta ya resuelta','Otra persona ya la confirmó o rechazó. Se actualizó la lista.');refreshBoletas()},
+    BOLETA_NO_ENCONTRADA:function(){toast('warn','Boleta no encontrada','Actualiza la página e inténtalo de nuevo.');refreshBoletas()},
+    DEMASIADOS_INTENTOS:function(){toast('warn','Demasiados intentos','Espera unos minutos e inténtalo de nuevo.')},
+    SIN_PERMISO:function(){toast('warn','Sin permiso','Tu usuario no tiene permiso para esta acción.')}
+  };
+  (m[d.error]||function(){toast('warn','No se pudo completar','Código: '+(d.error||'desconocido'))})();
+}
+function adminErr(d){
+  var m={
+    CREDENCIALES_INVALIDAS:sesionAdminInvalida,
+    SIN_PERMISO:function(){toast('warn','Solo administradores','Esta acción requiere un usuario administrador.')},
+    DATOS_INVALIDOS:function(){toast('warn','Datos inválidos','Revisa fecha, monto y correo.')},
+    OPERADA_NO_CAMBIAR_ESTADO:function(){toast('warn','Boleta ya operada','No se puede cambiar el estado de una boleta con operatoria. Reabre la operatoria primero.')},
+    NO_ESTA_OPERADA:function(){toast('warn','Sin operatoria','Esta boleta no tiene operatoria registrada.');refreshBoletas()},
+    BOLETA_NO_ENCONTRADA:function(){toast('warn','Boleta no encontrada','Actualiza la página e inténtalo de nuevo.');refreshBoletas()},
+    DEMASIADOS_INTENTOS:function(){toast('warn','Demasiados intentos','Espera unos minutos e inténtalo de nuevo.')}
+  };
+  (m[d.error]||function(){toast('warn','No se pudo completar','Código: '+(d.error||'desconocido'))})();
 }
 
-function doConfirm(id,e){
-  e.stopPropagation();
-  if(!requireClave())return;
+function resolverBoleta(id,estado){
   var b=boletas.find(function(x){return x.id===id});if(!b)return;
-  sb.from('boletas').update({status:'confirmed',resolve_time:new Date().toISOString()}).eq('id',id).then(function(res){
-    if(res.error){toast('warn','Error','No se pudo confirmar.');return}
-    addNotif('confirmed','Confirmada en banco',mon(b.banco,b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:'')+' · '+b.correo);
-    toast('success','✅ Boleta confirmada en banco',mon(b.banco,b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:''));
+  var c=gestionCred();
+  sb.rpc('gestion_resolver',{p_id:id,p_estado:estado,p_clave:c.p_clave,p_email:c.p_email}).then(function(res){
+    if(res.error){toast('warn','Error',estado==='confirmed'?'No se pudo confirmar.':'No se pudo actualizar.');console.error(res.error);return}
+    var d=res.data||{};
+    if(!d.ok){gestionErr(d);return}
+    var det=mon(b.banco,b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:'');
+    if(estado==='confirmed')toast('success','✅ Boleta confirmada en banco',det);
+    else toast('warn','⚠️ No encontrada en banco',det);
     refreshBoletas();
   });
 }
-
-function doReject(id,e){
-  e.stopPropagation();
-  if(!requireClave())return;
-  var b=boletas.find(function(x){return x.id===id});if(!b)return;
-  sb.from('boletas').update({status:'rejected',resolve_time:new Date().toISOString()}).eq('id',id).then(function(res){
-    if(res.error){toast('warn','Error','No se pudo actualizar.');return}
-    addNotif('rejected','No encontrada en banco',mon(b.banco,b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:'')+' · '+b.correo);
-    toast('warn','⚠️ No encontrada en banco',mon(b.banco,b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:''));
-    refreshBoletas();
-  });
-}
+function doConfirm(id,e){e.stopPropagation();requireClave(function(){resolverBoleta(id,'confirmed')})}
+function doReject(id,e){e.stopPropagation();requireClave(function(){resolverBoleta(id,'rejected')})}
 
 function doCaptura(id,e){
   e.stopPropagation();
   var f=e.target.files[0];if(!f)return;
   if(f.size>10*1024*1024){toast('warn','Archivo muy grande','La captura no debe pasar de 10 MB.');return}
-  toast('info','Subiendo captura...','Un momento.');
-  uploadImage(f,'captura').then(function(path){
-    return sb.from('boletas').update({captura_path:path}).eq('id',id);
-  }).then(function(res){
-    if(res.error)throw res.error;
-    expandedId=id;
-    toast('success','📷 Captura adjuntada','La captura del banco fue guardada en la boleta.');
-    refreshBoletas();
-  }).catch(function(err){
-    toast('warn','Error','No se pudo subir la captura.');
-    console.error('captura error',err);
+  requireClave(function(){
+    toast('info','Subiendo captura...','Un momento.');
+    uploadImage(f,'captura').then(function(path){
+      var c=gestionCred();
+      return sb.rpc('gestion_captura',{p_id:id,p_path:path,p_clave:c.p_clave,p_email:c.p_email});
+    }).then(function(res){
+      if(res.error)throw res.error;
+      var d=res.data||{};
+      if(!d.ok){gestionErr(d);return}
+      expandedId=id;
+      toast('success','📷 Captura adjuntada','La captura del banco fue guardada en la boleta.');
+      refreshBoletas();
+    }).catch(function(err){
+      toast('warn','Error','No se pudo subir la captura.');
+      console.error('captura error',err);
+    });
   });
 }
 
@@ -2273,6 +2325,7 @@ function operBadge(b){
 }
 function savedName(){try{return localStorage.getItem('oper_nombre')||''}catch(e){return ''}}
 function renderOper(){
+  renderOperSession();
   var allConf=boletas.filter(function(b){return b.status==='confirmed'});
   renderOperResumen(allConf.filter(function(b){return !operPais||bancoInfo(b.banco).pais===operPais}));
   fillOperPais(allConf);
@@ -2319,8 +2372,8 @@ function renderOper(){
       '<div class="oper-cerrada-banner">🔒 Operatoria cerrada · esta boleta ya fue operada y no se puede volver a guardar.</div>'+
       '<div class="d-lbl">Resumen de la gestión</div>'+
       '<div class="d-val oper-cerrada-nota">'+(b.operNota?ea(b.operNota):'<span style="opacity:.55">Sin resumen</span>')+'</div>'+
-      huella+'</div>';
-    var puede=!!opSes&&opSes.pais===bi.pais;
+      huella+(esAdmin()?'<button class="btn-edit oper-reabrir" onclick="adminReabrir('+b.id+')">🔓 Reabrir operatoria (administrador)</button>':'')+'</div>';
+    var puede=!!opSes&&(opSes.rol==='admin'||opSes.pais===bi.pais);
     var previo=(b.operado===false)?'<div class="d-lbl">Último registro: no operado</div><div class="d-val oper-cerrada-nota">'+(b.operNota?ea(b.operNota):'—')+'</div>'+huella:'';
     var sinAccesoHtml='<div class="oper-form oper-sinacceso"><div class="oper-title">Operatoria de cartera</div>'+
       (!opSes?'<div class="oper-cerrada-banner">🔐 Solo lectura · inicia sesión con tu correo y clave para registrar la operatoria.</div><button class="btn-primary" onclick="opLoginOpen()">🔐 Iniciar sesión</button>'
@@ -2387,7 +2440,7 @@ function operFile(id,input){
 function operSetFile(id,f,input){
   var bb=boletas.find(function(x){return x.id===id});
   if(bb&&bb.operado===true){operCerradaAviso();return}
-  if(bb&&(!opSes||opSes.pais!==bancoInfo(bb.banco).pais)){toast('warn','Sin permiso','Inicia sesión con un usuario que opere este país para adjuntar evidencia.');return}
+  if(bb&&(!opSes||(opSes.rol!=='admin'&&opSes.pais!==bancoInfo(bb.banco).pais))){toast('warn','Sin permiso','Inicia sesión con un usuario que opere este país para adjuntar evidencia.');return}
   if(!/^image\//.test(f.type)){toast('warn','Solo imágenes','Adjunta una imagen (JPG, PNG, etc.).');if(input)input.value='';return}
   if(f.size>10*1024*1024){toast('warn','Archivo muy grande','La imagen no debe pasar de 10 MB.');if(input)input.value='';return}
   if(operFiles[id])URL.revokeObjectURL(operFiles[id].url);
@@ -2468,7 +2521,7 @@ function huellaHtml(b){
 function renderOperSession(){
   var el=document.getElementById('oper-session');if(!el)return;
   el.innerHTML=opSes
-    ?'<span class="ses-ico on">👤</span><div class="ses-info"><strong>'+ea(opSes.nombre)+'</strong><span>'+ea(opSes.email)+' · opera '+ea(opSes.pais)+'</span></div><button class="btn-export alt" onclick="opLogout()">Cerrar sesión</button>'
+    ?'<span class="ses-ico on">'+(opSes.rol==='admin'?'🛡️':'👤')+'</span><div class="ses-info"><strong>'+ea(opSes.nombre)+'</strong><span>'+ea(opSes.email)+' · '+(opSes.rol==='admin'?'Administrador · acceso total':'opera '+ea(opSes.pais))+'</span></div><button class="btn-export alt" onclick="opLogout()">Cerrar sesión</button>'
     :'<span class="ses-ico">🔐</span><div class="ses-info"><strong>Modo lectura</strong><span>Inicia sesión con tu correo y clave para registrar operatorias</span></div><button class="btn-export" onclick="opLoginOpen()">Iniciar sesión</button>';
 }
 function opLoginOpen(){
@@ -2493,18 +2546,24 @@ function opLoginSubmit(){
       err.textContent=(d&&d.error==='DEMASIADOS_INTENTOS')?'Demasiados intentos fallidos. Espera unos minutos e inténtalo de nuevo.':'Correo o clave incorrectos, o no tienes permiso para operar.';
       document.getElementById('op-clave').value='';return;
     }
-    opSes={email:d.email,nombre:d.nombre,pais:d.pais,clave:cl};opSave();
+    opSes={email:d.email,nombre:d.nombre,pais:d.pais,rol:d.rol||'operador',clave:cl};opSave();
     try{localStorage.setItem('oper_email',d.email)}catch(e){}
     opLoginClose();
-    operPais=d.pais;operBanco='';
-    toast('success','🔓 Sesión iniciada','Hola, '+d.nombre+'. Operas boletas de '+d.pais+'.');
-    renderOper();
+    if(opSes.rol==='admin'){
+      operPais='';operBanco='';setAdminMode(true);
+      toast('success','🛡️ Administrador activo','Hola, '+d.nombre+'. Tienes acceso total al hub.');
+    }else{
+      operPais=d.pais;operBanco='';
+      toast('success','🔓 Sesión iniciada','Hola, '+d.nombre+'. Operas boletas de '+d.pais+'.');
+    }
+    renderOper();renderPanel();
   });
 }
 function opLogout(){
-  opSes=null;opSave();
-  toast('info','Sesión cerrada','Ahora solo puedes ver la operatoria.');
-  renderOper();
+  var fueAdmin=esAdmin();
+  opSes=null;opSave();setAdminMode(false);
+  toast('info',fueAdmin?'Modo administrador desactivado':'Sesión cerrada','Volviste al modo normal.');
+  renderOper();renderPanel();
 }
 function opErrorToast(d,id){
   var m={
@@ -2515,7 +2574,7 @@ function opErrorToast(d,id){
     BOLETA_NO_CONFIRMADA:function(){toast('warn','Boleta no confirmada','Solo se opera una boleta ya confirmada en banco.');refreshBoletas()},
     BOLETA_NO_ENCONTRADA:function(){toast('warn','Boleta no encontrada','Actualiza la página e inténtalo de nuevo.');refreshBoletas()},
     DEMASIADOS_INTENTOS:function(){toast('warn','Demasiados intentos','Espera unos minutos e inténtalo de nuevo.')},
-    CREDENCIALES_INVALIDAS:function(){opSes=null;opSave();renderOper();toast('warn','Sesión no válida','Vuelve a iniciar sesión.');opLoginOpen()}
+    CREDENCIALES_INVALIDAS:function(){sesionAdminInvalida()}
   };
   (m[d.error]||function(){toast('warn','No se pudo guardar','Código: '+(d.error||'desconocido'))})();
 }
@@ -2523,7 +2582,7 @@ function saveOper(id){
   var b=boletas.find(function(x){return x.id===id});if(!b)return;
   if(b.operado===true){operCerradaAviso();refreshBoletas();return}
   if(!opSes){opLoginOpen();return}
-  if(bancoInfo(b.banco).pais!==opSes.pais){toast('warn','Sin permiso','Tu usuario opera boletas de '+opSes.pais+'.');return}
+  if(opSes.rol!=='admin'&&bancoInfo(b.banco).pais!==opSes.pais){toast('warn','Sin permiso','Tu usuario opera boletas de '+opSes.pais+'.');return}
   var ch=document.querySelector('input[name="oper-'+id+'"]:checked');
   var nota=document.getElementById('oper-nota-'+id).value.trim();
   if(!ch){toast('warn','Falta el estado','Indica si la boleta fue operada o no.');return}
@@ -2796,40 +2855,19 @@ function closeLightbox(){document.getElementById('lightbox').classList.remove('o
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLightbox()});
 
 /* ─── ADMIN ──────────────────────────────────── */
+function setAdminMode(on){
+  adminMode=!!on;
+  var t=document.getElementById('admin-toggle'),bn=document.getElementById('admin-banner');
+  t.classList.toggle('on',adminMode);
+  t.textContent=adminMode?'🔓':'🔒';
+  document.body.classList.toggle('admin-on',adminMode);
+  bn.classList.toggle('show',adminMode);
+  if(adminMode&&opSes)bn.textContent='🔓 Administrador: '+opSes.nombre+' ('+opSes.email+') — acceso total al hub';
+}
 function toggleAdmin(){
-  if(adminMode){
-    adminMode=false;
-    document.getElementById('admin-toggle').classList.remove('on');
-    document.body.classList.remove('admin-on');
-    document.getElementById('admin-toggle').textContent='🔒';
-    document.getElementById('admin-banner').classList.remove('show');
-    toast('info','Modo administrador desactivado','Volviste al modo normal.');
-    renderPanel();
-  }else{
-    document.getElementById('pin-input').value='';
-    document.getElementById('pin-modal').classList.add('open');
-    setTimeout(function(){document.getElementById('pin-input').focus()},100);
-  }
+  if(adminMode){opLogout()}
+  else{opLoginOpen()}
 }
-function closePin(){document.getElementById('pin-modal').classList.remove('open')}
-function checkPin(){
-  var v=document.getElementById('pin-input').value;
-  if(v===ADMIN_PIN){
-    adminMode=true;
-    document.getElementById('admin-toggle').classList.add('on');
-    document.body.classList.add('admin-on');
-    document.getElementById('admin-toggle').textContent='🔓';
-    document.getElementById('admin-banner').classList.add('show');
-    closePin();
-    switchTab('panel');
-    renderPanel();
-    toast('success','🔓 Acceso concedido','Modo administrador activo. Puedes editar y borrar.');
-  }else{
-    toast('warn','PIN incorrecto','El PIN ingresado no es válido.');
-    document.getElementById('pin-input').value='';
-  }
-}
-
 function openEdit(id,e){
   if(e)e.stopPropagation();
   if(!adminMode)return;
@@ -2853,26 +2891,25 @@ function openEdit(id,e){
 }
 function closeEdit(){document.getElementById('edit-modal').classList.remove('open');editingId=null}
 function saveEdit(){
-  if(!editingId)return;
+  if(!editingId||!esAdmin())return;
   var banco=document.getElementById('e-banco').value;
   var fecha=document.getElementById('e-fecha').value;
   var monto=document.getElementById('e-monto').value;
-  var rep=document.getElementById('e-representante').value.trim();
   var correo=document.getElementById('e-correo').value;
-  var status=document.getElementById('e-status').value;
   if(!fecha||!monto||parseFloat(monto)<=0||!correo||!correo.includes('@')){
     toast('warn','Datos inválidos','Revisa fecha, monto y correo.');return;
   }
-  var b=boletas.find(function(x){return x.id===editingId});
-  var upd={banco:banco,fecha:fecha,monto:parseFloat(monto).toFixed(2),
-    representante:rep||null,codigo_representante:document.getElementById('e-codigo').value.trim()||null,
-    zona:document.getElementById('e-zona').value.trim()||null,
-    numero_boleta:document.getElementById('e-numero').value.trim()||null,correo:correo,status:status};
-  // si pasa a confirmada/rechazada y no tenía resolución, marca hora
-  if(status!=='pending'&&b&&!b.resolveTime)upd.resolve_time=new Date().toISOString();
-  if(status==='pending')upd.resolve_time=null;
-  sb.from('boletas').update(upd).eq('id',editingId).then(function(res){
+  var datos={banco:banco,fecha:fecha,monto:parseFloat(monto).toFixed(2),
+    representante:document.getElementById('e-representante').value.trim(),
+    codigo_representante:document.getElementById('e-codigo').value.trim(),
+    zona:document.getElementById('e-zona').value.trim(),
+    numero_boleta:document.getElementById('e-numero').value.trim(),
+    correo:correo,status:document.getElementById('e-status').value};
+  var c=adminCred();
+  sb.rpc('admin_editar',{p_id:editingId,p_email:c.p_email,p_clave:c.p_clave,p_datos:datos}).then(function(res){
     if(res.error){toast('warn','Error','No se pudo guardar.');console.error(res.error);return}
+    var d=res.data||{};
+    if(!d.ok){adminErr(d);return}
     closeEdit();
     toast('success','✏️ Solicitud actualizada','Los cambios se guardaron correctamente.');
     refreshBoletas();
@@ -2881,24 +2918,32 @@ function saveEdit(){
 
 function doDelete(id,e){
   if(e)e.stopPropagation();
-  if(!adminMode)return;
+  if(!adminMode||!esAdmin())return;
   var b=boletas.find(function(x){return x.id===id});if(!b)return;
-  var label=(b.representante||'sin nombre')+' — L '+fmt(b.monto);
-  if(!confirm('¿Borrar esta solicitud de forma permanente?\n\n'+label+'\n'+b.banco+'\n\nEsta acción no se puede deshacer.'))return;
-  // borrar imágenes del storage si existen
-  var paths=[];
-  if(b.imagePath)paths.push(b.imagePath);
-  if(b.capturaPath)paths.push(b.capturaPath);
-  var doRow=function(){
-    sb.from('boletas').delete().eq('id',id).then(function(res){
-      if(res.error){toast('warn','Error','No se pudo borrar.');console.error(res.error);return}
-      toast('success','🗑 Solicitud borrada',label+' fue eliminada.');
-      refreshBoletas();
-    });
-  };
-  if(paths.length){
-    sb.storage.from(BUCKET).remove(paths).then(doRow);
-  }else{doRow()}
+  var label=(b.representante||'sin nombre')+' — '+mon(b.banco,b.monto);
+  if(!confirm('¿Borrar esta solicitud de forma permanente?\n\n'+marcaUnica(b.id)+' · '+label+'\n'+b.banco+'\n\nEsta acción no se puede deshacer y quedará registrada en el historial.'))return;
+  var c=adminCred();
+  sb.rpc('admin_borrar',{p_id:id,p_email:c.p_email,p_clave:c.p_clave}).then(function(res){
+    if(res.error){toast('warn','Error','No se pudo borrar.');console.error(res.error);return}
+    var d=res.data||{};
+    if(!d.ok){adminErr(d);return}
+    toast('success','🗑 Solicitud borrada',label+' fue eliminada.');
+    refreshBoletas();
+  });
+}
+function adminReabrir(id){
+  if(!esAdmin())return;
+  var b=boletas.find(function(x){return x.id===id});if(!b)return;
+  if(!confirm('¿Reabrir la operatoria de '+marcaUnica(b.id)+'?\n\nSe borrará el registro actual (quedará anotado en el historial) y la boleta volverá a la cola de Por operar.'))return;
+  var c=adminCred();
+  sb.rpc('admin_reabrir_operatoria',{p_id:id,p_email:c.p_email,p_clave:c.p_clave}).then(function(res){
+    if(res.error){toast('warn','Error','No se pudo reabrir.');console.error(res.error);return}
+    var d=res.data||{};
+    if(!d.ok){adminErr(d);return}
+    operOpen[id]=true;
+    toast('success','🔓 Operatoria reabierta',marcaUnica(b.id)+' volvió a la cola de Por operar.');
+    refreshBoletas();
+  });
 }
 
 /* ─── INIT ───────────────────────────────────── */
@@ -2919,33 +2964,30 @@ if(SOLO){
 if(SOLO==='form'){setSS('ok','Listo para enviar')}else{load()}
 
 initPaises();
+if(esAdmin())setAdminMode(true);
 (function(){var h=(location.hash||'').replace('#','');var t=SOLO||(PAGES[h]?h:null);if(t)switchTab(t)})();
 </script>
 <!-- ═══════════════ ADMIN ═══════════════ -->
 <button class="admin-toggle" id="admin-toggle" onclick="toggleAdmin()" title="Modo administrador">🔒</button>
 
-<div class="modal-back" id="pin-modal">
+<div class="modal-back" id="avon-modal" onclick="if(event.target===this)avonClose()">
   <div class="modal">
-    <h3>🔐 Acceso administrador</h3>
-    <div class="field">
-      <div class="label">Ingresa el PIN</div>
-      <input type="password" id="pin-input" class="pin-input" maxlength="6" inputmode="numeric" placeholder="••••" onkeydown="if(event.key==='Enter')checkPin()">
-    </div>
-    <div class="modal-actions">
-      <button class="modal-cancel" onclick="closePin()">Cancelar</button>
-      <button class="modal-save" onclick="checkPin()">Entrar</button>
-    </div>
+    <h3>🔑 Clave Avon · Gestión</h3>
+    <div class="field"><div class="label">Clave Avon</div><input type="password" id="avon-clave" placeholder="Clave Avon" autocomplete="current-password" onkeydown="if(event.key==='Enter')avonSubmit()"></div>
+    <div class="op-login-error" id="avon-error"></div>
+    <div class="modal-actions"><button class="modal-cancel" onclick="avonClose()">Cancelar</button><button class="modal-save" id="avon-btn" onclick="avonSubmit()">Entrar</button></div>
+    <div class="op-login-note">Con la clave Avon puedes confirmar o rechazar boletas en Gestión.</div>
   </div>
 </div>
 
 <div class="modal-back" id="op-login-modal" onclick="if(event.target===this)opLoginClose()">
   <div class="modal">
-    <h3>🔐 Iniciar sesión · Operatoria de cartera</h3>
+    <h3>🔐 Iniciar sesión</h3>
     <div class="field"><div class="label">Correo</div><input type="email" id="op-email" placeholder="nombre.apellido@grupopdc.com" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('op-clave').focus()"></div>
-    <div class="field"><div class="label">Clave</div><input type="password" id="op-clave" placeholder="Clave de operatoria" autocomplete="current-password" onkeydown="if(event.key==='Enter')opLoginSubmit()"></div>
+    <div class="field"><div class="label">Clave</div><input type="password" id="op-clave" placeholder="Tu clave" autocomplete="current-password" onkeydown="if(event.key==='Enter')opLoginSubmit()"></div>
     <div class="op-login-error" id="op-login-error"></div>
     <div class="modal-actions"><button class="modal-cancel" onclick="opLoginClose()">Cancelar</button><button class="modal-save" id="op-login-btn" onclick="opLoginSubmit()">Entrar</button></div>
-    <div class="op-login-note">Solo personal autorizado. Cada operatoria queda registrada con tu correo.</div>
+    <div class="op-login-note">Operadores de cartera: clave de operatoria. Administradores: clave Avon. Cada acción queda registrada con tu correo.</div>
   </div>
 </div>
 
