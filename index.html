@@ -468,6 +468,30 @@ input:focus,select:focus,textarea:focus{border-color:var(--pdc);box-shadow:0 0 3
 .orr-n.yes{background:var(--success-bg);color:var(--success);border:1px solid var(--success-border)}
 .orr-n.no{background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border)}
 .orr-money{font-size:.72rem;font-weight:800;color:var(--avon)}
+
+/* Semáforo de atención */
+.sla-note{font-size:.76rem;color:var(--text-muted);margin-bottom:10px}
+.sla-note strong{color:var(--pdc)}
+.sem-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.sem-card{border:1px solid var(--border);border-radius:14px;padding:10px 6px;text-align:center;cursor:pointer;font-family:var(--font);background:#fff;transition:all .15s}
+.sem-card:hover{transform:translateY(-1px)}
+.sem-card.sel{outline:2px solid var(--pdc)}
+.sem-n{font-size:1.5rem;font-weight:900;line-height:1}
+.sem-l{font-size:.68rem;font-weight:800;margin-top:4px}
+.sem-d{font-size:.6rem;opacity:.8;margin-top:1px}
+.sem-ok{background:#ECFDF3;border-color:#A7E3BF;color:#15803D}
+.sem-warn{background:#FFFBEB;border-color:#FDE68A;color:#B45309}
+.sem-high{background:#FFF7ED;border-color:#FDBA74;color:#C2410C}
+.sem-crit{background:#FEF2F2;border-color:#FCA5A5;color:#DC2626}
+.status-badge.sem{border:1px solid;font-weight:800}
+.oper-card.oc-ok{border-left:5px solid #15803D}
+.oper-card.oc-warn{border-left:5px solid #F59E0B}
+.oper-card.oc-high{border-left:5px solid #F97316}
+.oper-card.oc-crit{border-left:5px solid #DC2626;box-shadow:0 0 0 1px rgba(220,38,38,.25)}
+.orr-n.high{background:#FFF7ED;color:#C2410C;border:1px solid #FDBA74}
+.orr-n.crit{background:#FEF2F2;color:#DC2626;border:1px solid #FCA5A5}
+.badge.badge-crit{background:#DC2626;color:#fff}
+@media(max-width:420px){.sem-d{display:none}}
 </style>
 </head>
 <body>
@@ -628,6 +652,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--pdc);box-shadow:0 0 3
     <div class="stat-card"><div class="stat-val rej" id="oc-no">0</div><div class="stat-lbl">No operadas</div></div>
     <div class="stat-card"><div class="stat-val tot" id="oc-tot">0</div><div class="stat-lbl">Confirmadas</div></div>
   </div>
+  <div class="sla-note">⏱ Meta de aplicación: <strong>24 horas</strong> desde que la boleta se confirma en banco.</div>
+  <div id="oper-sem"></div>
   <div id="oper-resumen"></div>
   <div class="filter-row">
     <button class="filter-btn active" onclick="setOperFilter('pending',this)">⏳ Por operar</button>
@@ -790,6 +816,7 @@ function rowToBoleta(r){
     submitTime:fmtTime(r.submit_time),
     submitISO:r.submit_time,
     submitDate:(r.submit_time||'').slice(0,10),
+    resolveISO:r.resolve_time||null,
     resolveTime:r.resolve_time?fmtTime(r.resolve_time):null
   };
 }
@@ -920,7 +947,7 @@ function updateBadges(){
   el.textContent=p;el.style.display=p?'inline':'none';
   var po=boletas.filter(function(b){return b.status==='confirmed'&&b.operado===null}).length;
   var eo=document.getElementById('badge-oper');
-  if(eo){eo.textContent=po;eo.style.display=po?'inline':'none'}
+  if(eo){eo.textContent=po;eo.style.display=po?'inline':'none';eo.classList.toggle('badge-crit',boletas.some(function(b){return b.status==='confirmed'&&b.operado===null&&semOf(b).k==='crit'}))}
 }
 function updateNotifBadge(){
   var u=notifs.filter(function(n){return !n.read}).length;
@@ -1355,12 +1382,25 @@ function renderBankBars(rows){
 }
 
 /* ─── OPERATORIA DE CARTERA ──────────────────── */
-var operFilter='pending',operPais='',operBanco='';
+var operFilter='pending',operPais='',operBanco='',operSem='';
 function setOperFilter(f,btn){
   operFilter=f;
   document.querySelectorAll('#view-oper .filter-btn').forEach(function(x){x.classList.remove('active')});
   if(btn)btn.classList.add('active');
   renderOper();
+}
+function setOperSem(k){operSem=(operSem===k)?'':k;renderOper()}
+function renderOperSem(conf){
+  var el=document.getElementById('oper-sem');
+  var pend=conf.filter(function(b){return b.operado===null});
+  var n={ok:0,warn:0,high:0,crit:0};
+  pend.forEach(function(b){n[semOf(b).k]++});
+  el.innerHTML='<div class="sem-strip">'+SEM.map(function(m){
+    return '<button class="sem-card sem-'+m.k+(operSem===m.k?' sel':'')+'" onclick="setOperSem(\''+m.k+'\')">'+
+      '<div class="sem-n">'+n[m.k]+'</div><div class="sem-l">'+m.ico+' '+m.nom+'</div><div class="sem-d">'+m.desc+'</div></button>';
+  }).join('')+'</div>';
+  var eo=document.getElementById('badge-oper');
+  if(eo)eo.classList.toggle('badge-crit',n.crit>0);
 }
 function setOperScope(pais,banco){
   if(operPais===pais&&operBanco===(banco||'')){operPais='';operBanco=''}
@@ -1373,16 +1413,16 @@ function renderOperResumen(conf){
   var P={};
   conf.forEach(function(b){
     var bi=bancoInfo(b.banco);
-    var c=P[bi.pais]||(P[bi.pais]={pais:bi.pais,cur:bi.cur,pend:0,pendM:0,yes:0,no:0,banks:{}});
-    var k=c.banks[b.banco]||(c.banks[b.banco]={valor:b.banco,nombre:bi.banco,pend:0,pendM:0,yes:0,no:0});
+    var c=P[bi.pais]||(P[bi.pais]={pais:bi.pais,cur:bi.cur,pend:0,pendM:0,yes:0,no:0,high:0,crit:0,banks:{}});
+    var k=c.banks[b.banco]||(c.banks[b.banco]={valor:b.banco,nombre:bi.banco,pend:0,pendM:0,yes:0,no:0,high:0,crit:0});
     var m=parseFloat(b.monto)||0;
-    if(b.operado===null){c.pend++;c.pendM+=m;k.pend++;k.pendM+=m}
+    if(b.operado===null){c.pend++;c.pendM+=m;k.pend++;k.pendM+=m;var sk=semOf(b).k;if(sk==='crit'){c.crit++;k.crit++}else if(sk==='high'){c.high++;k.high++}}
     else if(b.operado===true){c.yes++;k.yes++}
     else{c.no++;k.no++}
   });
   var order=PAISES.map(function(x){return x.n}).filter(function(n){return P[n]});
   if(!order.length){el.innerHTML='';return}
-  var cnt=function(o){return '<span class="orr-n pend">'+o.pend+' por operar</span><span class="orr-n yes">'+o.yes+' operadas</span><span class="orr-n no">'+o.no+' no operadas</span>'};
+  var cnt=function(o){return (o.crit?'<span class="orr-n crit">🔴 '+o.crit+' crítica'+(o.crit>1?'s':'')+'</span>':'')+(o.high?'<span class="orr-n high">🟠 '+o.high+' urgente'+(o.high>1?'s':'')+'</span>':'')+'<span class="orr-n pend">'+o.pend+' por operar</span><span class="orr-n yes">'+o.yes+' operadas</span><span class="orr-n no">'+o.no+' no operadas</span>'};
   el.innerHTML='<div class="oper-res"><div class="oper-res-head"><div class="oper-title" style="margin:0">Resumen por país y banco</div>'+
     ((operPais||operBanco)?'<button class="df-clear" onclick="clearOperScope()">Ver todos</button>':'<span class="oper-res-hint">Toca un país o banco para filtrar</span>')+'</div>'+
     order.map(function(n){
@@ -1401,7 +1441,31 @@ function renderOperResumen(conf){
       '</div>';
     }).join('')+'</div>';
 }
+/* ─── SEMÁFORO DE ATENCIÓN (meta: 24 h desde la confirmación en banco) ─── */
+var SEM=[
+  {k:'ok',   ico:'🟢',nom:'En tiempo', max:24,  desc:'Hasta 24 h'},
+  {k:'warn', ico:'🟡',nom:'Atrasada',  max:72,  desc:'24 h a 3 días'},
+  {k:'high', ico:'🟠',nom:'Urgente',   max:168, desc:'3 a 7 días'},
+  {k:'crit', ico:'🔴',nom:'Crítica',   max:1e9, desc:'7 días o más'}
+];
+function horasPend(b){
+  var t=Date.parse(b.resolveISO||b.submitISO||'');
+  return isNaN(t)?0:Math.max(0,(Date.now()-t)/36e5);
+}
+function semOf(b){
+  var h=horasPend(b);
+  for(var i=0;i<SEM.length;i++){if(h<=SEM[i].max||i===SEM.length-1)return SEM[i]}
+}
+function hace(h){
+  if(h<1)return 'menos de 1 h';
+  if(h<48)return Math.floor(h)+' h';
+  return Math.floor(h/24)+' días';
+}
 function operBadge(b){
+  if(b.status==='confirmed'&&b.operado===null){
+    var sm=semOf(b);
+    return '<span class="status-badge sem sem-'+sm.k+'">'+sm.ico+' '+sm.nom+' · '+hace(horasPend(b))+'</span>';
+  }
   if(b.operado===true)return '<span class="status-badge st-confirmed">✅ Operado</span>';
   if(b.operado===false)return '<span class="status-badge st-rejected">🚫 No operado</span>';
   return '<span class="status-badge st-pending">⏳ Por operar</span>';
@@ -1422,8 +1486,17 @@ function renderOper(){
   document.getElementById('oc-yes').textContent=nY;
   document.getElementById('oc-no').textContent=nN;
   document.getElementById('oc-tot').textContent=conf.length;
+  renderOperSem(conf);
   var rows=conf.filter(function(b){
+    if(operSem)return b.operado===null&&semOf(b).k===operSem;
     return operFilter==='all'||(operFilter==='pending'&&b.operado===null)||(operFilter==='yes'&&b.operado===true)||(operFilter==='no'&&b.operado===false);
+  });
+  // pendientes primero, los más antiguos arriba
+  rows.sort(function(a,b){
+    var pa=a.operado===null?0:1,pb=b.operado===null?0:1;
+    if(pa!==pb)return pa-pb;
+    if(pa===0)return horasPend(b)-horasPend(a);
+    return b.id-a.id;
   });
   var list=document.getElementById('oper-list');
   if(!rows.length){list.innerHTML='<div class="empty-state"><span class="empty-icon">📭</span>No hay boletas confirmadas en esta categoría'+((operPais||operBanco)?' para '+ea(operBanco?bancoInfo(operBanco).banco+' · '+operPais:operPais):'')+'</div>';return}
@@ -1433,7 +1506,8 @@ function renderOper(){
     var huella=b.operAt?'<div class="oper-huella">🧾 Registrado por <strong>'+ea(b.operPor||'—')+'</strong> · '+fmtTime(b.operAt)+'</div>':'';
     var thumbs=(b.dataUrl?'<img src="'+b.dataUrl+'" alt="Comprobante" onclick="openLbUrl(\''+b.dataUrl+'\',event)">':'')+
                (b.capturaUrl?'<img src="'+b.capturaUrl+'" alt="Captura" onclick="openLbUrl(\''+b.capturaUrl+'\',event)">':'');
-    return '<div class="boleta-card oper-card" id="oc-'+b.id+'">'+
+    var semCls=(b.operado===null)?' oc-'+semOf(b).k:'';
+    return '<div class="boleta-card oper-card'+semCls+'" id="oc-'+b.id+'">'+
       '<div class="boleta-header">'+
         '<span class="bank-badge '+bankClass(b.banco)+'">'+ea(bi.banco)+'</span>'+
         '<div class="boleta-info">'+
@@ -1612,6 +1686,11 @@ function doDelete(id,e){
 }
 
 /* ─── INIT ───────────────────────────────────── */
+setInterval(function(){
+  var av=document.querySelector('.view.active');
+  if(av&&av.id==='view-oper'&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#oper-list')))renderOper();
+  updateBadges();
+},60000);
 load();
 
 initPaises();
