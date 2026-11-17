@@ -492,10 +492,108 @@ input:focus,select:focus,textarea:focus{border-color:var(--pdc);box-shadow:0 0 3
 .orr-n.crit{background:#FEF2F2;color:#DC2626;border:1px solid #FCA5A5}
 .badge.badge-crit{background:#DC2626;color:#fff}
 @media(max-width:420px){.sem-d{display:none}}
+
+/* ═══════════ LAYOUT TIPO DASHBOARD: menú lateral ═══════════ */
+html,body{height:auto}
+body{display:block;min-height:100vh}
+.app{display:flex;flex-direction:column;min-height:100vh}
+.sidebar{display:flex;flex-direction:column;width:100%}
+.sidebar .header{order:1}
+.sidebar .sync-bar{order:2}
+.sidebar .nav-tabs{order:3}
+.content{flex:1;min-width:0;display:flex;flex-direction:column}
+.main{overflow:visible;flex:1}
+.topbar{display:none}
+.panel{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(0,33,111,.06)}
+.oper-top{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;margin-bottom:14px}
+.oper-sempanel .sla-note{margin:12px 0 0}
+.oper-sempanel .sem-strip{margin-bottom:0}
+.oper-tblpanel{padding:0;overflow:hidden}
+.oper-tblpanel .oper-res-head{padding:14px 16px}
+.tbl-wrap{overflow-x:auto}
+.oper-tbl{width:100%;border-collapse:collapse;font-size:.8rem;min-width:660px}
+.oper-tbl th{background:var(--pdc);color:#fff;font-size:.64rem;text-transform:uppercase;letter-spacing:.4px;padding:10px 8px;text-align:center;white-space:nowrap;font-weight:800}
+.oper-tbl th:first-child,.oper-tbl td:first-child{text-align:left;padding-left:16px}
+.oper-tbl td{padding:9px 8px;border-top:1px solid var(--border);text-align:center;font-weight:600}
+.oper-tbl tr.tr-pais td{background:#F5F7FA;font-weight:800;color:var(--pdc)}
+.oper-tbl tr.tr-pais td.n0{color:#B9C4D6}
+.oper-tbl tr.tr-bank td:first-child{padding-left:30px;font-weight:600;color:var(--text)}
+.oper-tbl tr.tr-row{cursor:pointer}
+.oper-tbl tr.tr-row:hover td{background:rgba(0,33,111,.06)}
+.oper-tbl tr.tr-row.sel td{background:rgba(255,81,0,.12)}
+.oper-tbl .n0{color:#C5CDDA;font-weight:400}
+.oper-tbl .n-crit{color:#DC2626;font-weight:900}
+.oper-tbl .n-high{color:#C2410C;font-weight:800}
+.oper-tbl .n-warn{color:#B45309;font-weight:800}
+.oper-tbl .n-ok{color:#15803D;font-weight:800}
+.oper-tbl .n-yes{color:#15803D;font-weight:700}
+.oper-tbl .n-no{color:#DC2626;font-weight:700}
+.oper-tbl .money{color:var(--avon);font-weight:800;white-space:nowrap}
+.oper-tbl tr.tr-total td{background:var(--pdc);color:#fff;font-weight:800;border-top:none}
+.oper-tbl tr.tr-total td.n0{color:rgba(255,255,255,.45)}
+.oper-tbl tr.tr-total td[class^="n-"],.oper-tbl tr.tr-total .money{color:#fff}
+#oper-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(460px,100%),1fr));gap:14px;align-items:start}
+#oper-list .boleta-card{margin-bottom:0}
+#oper-list .empty-state{grid-column:1/-1}
+
+@media(min-width:900px){
+  .app{flex-direction:row}
+  .sidebar{width:252px;flex-shrink:0;position:sticky;top:0;height:100vh;align-self:flex-start;background:var(--pdc);overflow-y:auto}
+  .sidebar .header{order:1;background:transparent;padding:22px 16px 16px;border-bottom:1px solid rgba(255,255,255,.14)}
+  .header::after{display:none}
+  .header-logo{height:54px}
+  .header-title{font-size:.95rem;margin-top:8px}
+  .header-sub{font-size:.66rem;margin-top:4px}
+  .sidebar .nav-tabs{order:2;flex-direction:column;background:transparent;border-bottom:none;padding:14px 10px;gap:4px;overflow:visible;flex:0 0 auto}
+  .tab{flex:none;min-width:0;justify-content:flex-start;padding:12px 14px;border-radius:12px;border-bottom:none;border-left:4px solid transparent;color:rgba(255,255,255,.85);font-size:.88rem}
+  .tab:hover:not(.active){background:rgba(255,255,255,.09);color:#fff}
+  .tab.active{background:rgba(255,255,255,.15);color:#fff;border-left-color:var(--avon);border-bottom-color:transparent}
+  .tab .badge{margin-left:auto}
+  .badge-gold{background:#fff;color:var(--pdc)}
+  .sidebar .sync-bar{order:3;margin-top:auto;background:transparent;border-top:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.8);padding:14px 16px;justify-content:flex-start}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:22px 28px 0;width:100%;max-width:1280px;margin:0 auto}
+  .topbar h1{font-size:1.45rem;font-weight:900;color:var(--pdc);line-height:1.15}
+  .topbar-sub{font-size:.82rem;color:var(--text-muted);margin-top:3px}
+  .main{max-width:1280px;padding:20px 28px 32px}
+  #view-form .form-card{max-width:760px}
+  #view-panel,#view-notif{max-width:1000px}
+  .oper-top{grid-template-columns:330px minmax(0,1fr);align-items:start}
+  .oper-sempanel .sem-strip{grid-template-columns:repeat(2,1fr)}
+  .oper-sempanel .sem-d{display:block}
+  .dash-head{display:none}
+  .dash-wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+  .dash-datefilter,.dash-kpis{grid-column:1/-1}
+  .dash-kpis,.dash-datefilter{margin-bottom:0}
+  .dash-panel{margin-bottom:0}
+}
+@media(max-width:899px){
+  .tab{min-width:120px}
+}
+
+.oper-tbl{min-width:580px;font-size:.78rem}
+.oper-tbl th{padding:10px 5px;font-size:.6rem}
+.oper-tbl td{padding:9px 5px}
+.oper-tbl td:first-child{white-space:nowrap}
+@media(min-width:900px){.oper-top{grid-template-columns:290px minmax(0,1fr)}}
+
+/* semáforo arriba (4 en fila) y tabla completa debajo; lado a lado solo en pantallas grandes */
+@media(min-width:900px) and (max-width:1399px){
+  .oper-top{grid-template-columns:minmax(0,1fr)}
+  .oper-sempanel .sem-strip{grid-template-columns:repeat(4,1fr)}
+}
+@media(min-width:1400px){.oper-top{grid-template-columns:290px minmax(0,1fr)}}
+
+.dash-panel,.dash-wrap>*{min-width:0}
+.chart-scroll{max-width:100%;overflow-x:auto}
+@media(min-width:900px){.dash-wrap{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+
+@media(max-width:899px){.sidebar .nav-tabs{overflow-x:auto}.tab{flex:0 0 auto;min-width:0;padding:13px 16px}}
 </style>
 </head>
 <body>
 
+<div class="app">
+<aside class="sidebar">
 <!-- HEADER -->
 <div class="header">
   <div class="header-logo-wrap">
@@ -505,9 +603,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--pdc);box-shadow:0 0 3
   <div class="header-sub">Sistema de validación bancaria · Avon CARD · Grupo PDC</div>
 </div>
 
-<!-- NAV TABS -->
-<div class="sync-bar"><div class="sync-dot loading" id="sync-dot"></div><span id="sync-text">Conectando...</span></div>
-<div class="admin-banner" id="admin-banner">🔓 Modo administrador activo — puedes editar y borrar solicitudes</div>
+<!-- MENÚ -->
 <div class="nav-tabs">
   <div class="tab active" id="tab-form" onclick="switchTab('form')">
     📤 Solicitud
@@ -516,18 +612,23 @@ input:focus,select:focus,textarea:focus{border-color:var(--pdc);box-shadow:0 0 3
     ✅ Gestión
     <span class="badge" id="badge-pend"></span>
   </div>
-  <div class="tab" id="tab-notif" onclick="switchTab('notif')">
-    🔔 Alertas
-    <span class="badge badge-gold" id="badge-notif"></span>
-  </div>
   <div class="tab" id="tab-oper" onclick="switchTab('oper')">
     💼 Operatoria de cartera
     <span class="badge badge-gold" id="badge-oper"></span>
+  </div>
+  <div class="tab" id="tab-notif" onclick="switchTab('notif')">
+    🔔 Alertas
+    <span class="badge badge-gold" id="badge-notif"></span>
   </div>
   <div class="tab" id="tab-dash" onclick="switchTab('dash')">
     📊 Dashboard
   </div>
 </div>
+<div class="sync-bar"><div class="sync-dot loading" id="sync-dot"></div><span id="sync-text">Conectando...</span></div>
+</aside>
+<div class="content">
+<div class="admin-banner" id="admin-banner">🔓 Modo administrador activo — puedes editar y borrar solicitudes</div>
+<div class="topbar"><div><h1 id="page-title">📤 Nueva solicitud</h1><div class="topbar-sub" id="page-sub">Registra la boleta de pago con su comprobante</div></div></div>
 
 <!-- TOAST -->
 <div class="toast-wrap" id="toast-wrap"></div>
@@ -652,9 +753,14 @@ input:focus,select:focus,textarea:focus{border-color:var(--pdc);box-shadow:0 0 3
     <div class="stat-card"><div class="stat-val rej" id="oc-no">0</div><div class="stat-lbl">No operadas</div></div>
     <div class="stat-card"><div class="stat-val tot" id="oc-tot">0</div><div class="stat-lbl">Confirmadas</div></div>
   </div>
-  <div class="sla-note">⏱ Meta de aplicación: <strong>24 horas</strong> desde que la boleta se confirma en banco.</div>
-  <div id="oper-sem"></div>
-  <div id="oper-resumen"></div>
+  <div class="oper-top">
+    <div class="panel oper-sempanel">
+      <div class="oper-title">Semáforo de atención</div>
+      <div id="oper-sem"></div>
+      <div class="sla-note">⏱ Meta de aplicación: <strong>24 horas</strong> desde que la boleta se confirma en banco.</div>
+    </div>
+    <div id="oper-resumen"></div>
+  </div>
   <div class="filter-row">
     <button class="filter-btn active" onclick="setOperFilter('pending',this)">⏳ Por operar</button>
     <button class="filter-btn" onclick="setOperFilter('yes',this)">✅ Operadas</button>
@@ -722,6 +828,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--pdc);box-shadow:0 0 3
 </div>
 
 </div><!-- /main -->
+</div><!-- /content -->
+</div><!-- /app -->
 
 <script>
 /* ═══════════════════════════════════════════════════════
@@ -927,7 +1035,15 @@ function uploadImage(file,prefix){
 }
 
 /* ─── TABS ───────────────────────────────────── */
+var PAGES={
+  form:['📤 Nueva solicitud','Registra la boleta de pago con su comprobante'],
+  panel:['✅ Gestión de boletas','Confirma en banco las solicitudes recibidas'],
+  oper:['💼 Operatoria de cartera','Boletas confirmadas en banco pendientes de aplicar a cartera'],
+  notif:['🔔 Alertas','Registro de movimientos del equipo'],
+  dash:['📊 Dashboard','Mediciones por fecha de transferencia']
+};
 function switchTab(t){
+  var pg=PAGES[t];if(pg){document.getElementById('page-title').textContent=pg[0];document.getElementById('page-sub').textContent=pg[1]}
   ['form','panel','oper','notif','dash'].forEach(function(v){
     document.getElementById('view-'+v).classList.remove('active');
     document.getElementById('tab-'+v).classList.remove('active');
@@ -1349,6 +1465,7 @@ function renderTrend(rows){
   });
 
   svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  svg.style.minWidth=W+'px';svg.style.height=H+'px';
   svg.innerHTML=
     '<defs><linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">'+
     '<stop offset="0%" stop-color="#00216F" stop-opacity="0.35"/>'+
@@ -1408,38 +1525,43 @@ function setOperScope(pais,banco){
   renderOper();
 }
 function clearOperScope(){operPais='';operBanco='';renderOper()}
+function setOperScopeEl(tr){setOperScope(tr.getAttribute('data-pais')||'',tr.getAttribute('data-banco')||'')}
 function renderOperResumen(conf){
   var el=document.getElementById('oper-resumen');
   var P={};
+  var blank=function(){return {ok:0,warn:0,high:0,crit:0,pend:0,pendM:0,yes:0,no:0}};
+  var T=blank();
   conf.forEach(function(b){
     var bi=bancoInfo(b.banco);
-    var c=P[bi.pais]||(P[bi.pais]={pais:bi.pais,cur:bi.cur,pend:0,pendM:0,yes:0,no:0,high:0,crit:0,banks:{}});
-    var k=c.banks[b.banco]||(c.banks[b.banco]={valor:b.banco,nombre:bi.banco,pend:0,pendM:0,yes:0,no:0,high:0,crit:0});
+    var c=P[bi.pais]||(P[bi.pais]=Object.assign(blank(),{pais:bi.pais,cur:bi.cur,banks:{}}));
+    var k=c.banks[b.banco]||(c.banks[b.banco]=Object.assign(blank(),{valor:b.banco,nombre:bi.banco}));
     var m=parseFloat(b.monto)||0;
-    if(b.operado===null){c.pend++;c.pendM+=m;k.pend++;k.pendM+=m;var sk=semOf(b).k;if(sk==='crit'){c.crit++;k.crit++}else if(sk==='high'){c.high++;k.high++}}
-    else if(b.operado===true){c.yes++;k.yes++}
-    else{c.no++;k.no++}
+    [c,k,T].forEach(function(o){
+      if(b.operado===null){o.pend++;o.pendM+=m;o[semOf(b).k]++}
+      else if(b.operado===true)o.yes++;else o.no++;
+    });
   });
   var order=PAISES.map(function(x){return x.n}).filter(function(n){return P[n]});
   if(!order.length){el.innerHTML='';return}
-  var cnt=function(o){return (o.crit?'<span class="orr-n crit">🔴 '+o.crit+' crítica'+(o.crit>1?'s':'')+'</span>':'')+(o.high?'<span class="orr-n high">🟠 '+o.high+' urgente'+(o.high>1?'s':'')+'</span>':'')+'<span class="orr-n pend">'+o.pend+' por operar</span><span class="orr-n yes">'+o.yes+' operadas</span><span class="orr-n no">'+o.no+' no operadas</span>'};
-  el.innerHTML='<div class="oper-res"><div class="oper-res-head"><div class="oper-title" style="margin:0">Resumen por país y banco</div>'+
+  var num=function(v,cls){return '<td class="'+(v?cls:'n0')+'">'+(v||'·')+'</td>'};
+  var cells=function(o,cur){
+    return num(o.crit,'n-crit')+num(o.high,'n-high')+num(o.warn,'n-warn')+num(o.ok,'n-ok')+
+      '<td><strong>'+o.pend+'</strong></td>'+num(o.yes,'n-yes')+num(o.no,'n-no')+
+      '<td class="money">'+(o.pend&&cur?cur+' '+fmt(o.pendM):'—')+'</td>';
+  };
+  var rows=order.map(function(n){
+    var c=P[n];
+    var banks=Object.keys(c.banks).map(function(v){return c.banks[v]}).sort(function(a,b){return b.crit-a.crit||b.pend-a.pend||a.nombre.localeCompare(b.nombre)});
+    return '<tr class="tr-row tr-pais'+(operPais===n&&!operBanco?' sel':'')+'" data-pais="'+ea(n)+'" onclick="setOperScopeEl(this)"><td>'+ea(n)+'</td>'+cells(c,c.cur)+'</tr>'+
+      banks.map(function(k){
+        return '<tr class="tr-row tr-bank'+(operBanco===k.valor?' sel':'')+'" data-pais="'+ea(n)+'" data-banco="'+ea(k.valor)+'" onclick="setOperScopeEl(this)"><td>🏦 '+ea(k.nombre)+'</td>'+cells(k,c.cur)+'</tr>';
+      }).join('');
+  }).join('');
+  el.innerHTML='<div class="panel oper-tblpanel">'+
+    '<div class="oper-res-head"><div class="oper-title" style="margin:0">Resumen por país y banco</div>'+
     ((operPais||operBanco)?'<button class="df-clear" onclick="clearOperScope()">Ver todos</button>':'<span class="oper-res-hint">Toca un país o banco para filtrar</span>')+'</div>'+
-    order.map(function(n){
-      var c=P[n],selP=operPais===n&&!operBanco;
-      var banks=Object.keys(c.banks).map(function(v){return c.banks[v]}).sort(function(a,b){return b.pend-a.pend||a.nombre.localeCompare(b.nombre)});
-      return '<div class="oper-res-pais'+(operPais===n?' open':'')+'">'+
-        '<div class="orr-row orr-pais'+(selP?' sel':'')+'" onclick="setOperScope(\''+n+'\')">'+
-          '<div class="orr-name">'+ea(n)+'</div>'+
-          '<div class="orr-stats">'+cnt(c)+(c.pend?'<span class="orr-money">'+c.cur+' '+fmt(c.pendM)+' pendiente</span>':'')+'</div></div>'+
-        banks.map(function(k){
-          var selB=operBanco===k.valor;
-          return '<div class="orr-row orr-bank'+(selB?' sel':'')+'" onclick="setOperScope(\''+n+'\',\''+ea(k.valor).replace(/'/g,"\\'")+'\')">'+
-            '<div class="orr-name">🏦 '+ea(k.nombre)+'</div>'+
-            '<div class="orr-stats">'+cnt(k)+(k.pend?'<span class="orr-money">'+c.cur+' '+fmt(k.pendM)+'</span>':'')+'</div></div>';
-        }).join('')+
-      '</div>';
-    }).join('')+'</div>';
+    '<div class="tbl-wrap"><table class="oper-tbl"><thead><tr><th>País / Banco</th><th>🔴 Crít.</th><th>🟠 Urg.</th><th>🟡 Atras.</th><th>🟢 A tiempo</th><th>Por operar</th><th>Operadas</th><th>No oper.</th><th>Pendiente</th></tr></thead><tbody>'+rows+
+    '<tr class="tr-total"><td>Total</td>'+cells(T,'')+'</tr></tbody></table></div></div>';
 }
 /* ─── SEMÁFORO DE ATENCIÓN (meta: 24 h desde la confirmación en banco) ─── */
 var SEM=[
