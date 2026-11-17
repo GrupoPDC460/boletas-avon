@@ -944,6 +944,22 @@ body.admin-on .admin-only{display:inline-block}
 .trk-tabla.e-error .trk-row:first-child .trk-v{background:#DC2626}
 .trk-tabla.e-warn .trk-row:first-child .trk-v{background:#D97706}
 .trk-tabla.e-ok .trk-row:first-child .trk-v{background:#15803D}
+
+.trk-lbl small{display:block;font-size:.6rem;font-weight:600;color:var(--text-muted);margin-top:1px;letter-spacing:0}
+.trk-lista-t{font-size:.9rem;font-weight:800;color:var(--pdc);margin:4px 2px 10px}
+.trk-lista-t small{font-size:.72rem;font-weight:600;color:var(--text-muted)}
+.trk-lista{display:flex;flex-direction:column;gap:9px}
+.trk-item{display:grid;grid-template-columns:minmax(120px,170px) 1fr auto;gap:14px;align-items:center;padding:12px 16px;border:1px solid var(--border);border-left:5px solid var(--pdc);border-radius:12px;background:#fff;cursor:pointer;text-align:left;font-family:var(--font);transition:all .15s}
+.trk-item:hover{border-color:var(--pdc);box-shadow:0 4px 14px rgba(0,33,111,.14);transform:translateY(-1px)}
+.trk-item span{display:block;font-size:.7rem;color:var(--text-muted);font-weight:500;margin-top:2px}
+.ti-m strong{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9rem;color:var(--pdc)}
+.ti-b{font-size:.84rem;font-weight:700;color:var(--text)}
+.ti-r{text-align:right}
+.ti-r b{display:block;font-size:1rem;font-weight:900;color:var(--avon)}
+.ti-pill{display:inline-block!important;margin-top:5px!important;padding:3px 10px;border-radius:20px;font-size:.64rem!important;font-weight:800!important;white-space:nowrap;color:#fff!important}
+.p-val{background:#4AA3D8}.p-oper{background:var(--avon)}.p-ok{background:#15803D}.p-warn{background:#D97706}.p-error{background:#DC2626}
+.trk-lista-h{font-size:.72rem;color:var(--text-muted);margin:10px 2px 0;text-align:center}
+@media(max-width:700px){.trk-item{grid-template-columns:1fr auto;grid-template-areas:"m r" "b r"}.ti-m{grid-area:m}.ti-b{grid-area:b}.ti-r{grid-area:r}}
 </style>
 </head>
 <body>
@@ -1099,11 +1115,11 @@ body.admin-on .admin-only{display:inline-block}
   <div id="form-sec-track" style="display:none">
     <div class="trk-wrap">
       <div class="trk-form">
-        <label class="trk-field"><span class="trk-lbl">MARCA ÚNICA</span><input id="trk-marca" type="text" placeholder="CC-00212" autocomplete="off" autocapitalize="characters" onkeydown="if(event.key==='Enter')trkBuscar()"></label>
         <label class="trk-field"><span class="trk-lbl">CÓDIGO DE LA REPRESENTANTE</span><input id="trk-codigo" type="text" placeholder="Código que ingresaste" autocomplete="off" onkeydown="if(event.key==='Enter')trkBuscar()"></label>
+        <label class="trk-field"><span class="trk-lbl">MARCA ÚNICA <small>opcional</small></span><input id="trk-marca" type="text" placeholder="CC-00212" autocomplete="off" autocapitalize="characters" onkeydown="if(event.key==='Enter')trkBuscar()"></label>
         <button class="trk-btn" id="trk-btn" onclick="trkBuscar()">RASTREA <span>→</span></button>
       </div>
-      <div class="trk-hint">La <strong>marca única</strong> aparece al enviar tu solicitud (por ejemplo CC-00212). Con ella y el código de la representante ves en qué etapa va tu boleta.</div>
+      <div class="trk-hint">Escribe tu <strong>código de representante</strong> para ver todas tus boletas recientes y elegir cuál rastrear. Si tienes la <strong>marca única</strong> (por ejemplo CC-00212), agrégala para ir directo a esa boleta.</div>
       <div id="trk-recientes"></div>
       <div id="trk-error" class="trk-error"></div>
       <div id="trk-result"></div>
@@ -2107,26 +2123,80 @@ function trkGuardar(marca,codigo,txt){
 function trkRecientes(){
   var el=document.getElementById('trk-recientes'),a=trkLeer();
   if(!a.length){el.innerHTML='';return}
-  el.innerHTML='<div class="trk-rec-t">Mis solicitudes en este dispositivo</div><div class="trk-rec">'+a.map(function(x,i){
-    return '<button class="trk-chip" onclick="trkIr('+i+')"><strong>'+ea(x.m)+'</strong><span>'+ea(x.t)+'</span></button>';
+  el.innerHTML='<div class="trk-rec-t">Mis consultas en este dispositivo</div><div class="trk-rec">'+a.map(function(x,i){
+    var porCodigo=String(x.m).indexOf('cod:')===0;
+    return '<button class="trk-chip" onclick="trkIr('+i+')"><strong>'+(porCodigo?'Código '+ea(x.c):ea(x.m))+'</strong><span>'+(porCodigo?'Todas mis boletas':ea(x.t))+'</span></button>';
   }).join('')+'</div>';
 }
+var trkLista=null;
 function trkIr(i,codigo){
   var m,c;
-  if(typeof i==='number'){var x=trkLeer()[i];if(!x)return;m=x.m;c=x.c}else{m=i;c=codigo}
+  if(typeof i==='number'){var x=trkLeer()[i];if(!x)return;m=String(x.m).indexOf('cod:')===0?'':x.m;c=x.c}else{m=i;c=codigo}
   setFormSec('track');
   document.getElementById('trk-marca').value=m;document.getElementById('trk-codigo').value=c||'';
   trkBuscar();
   var v=document.getElementById('form-sec-track');if(v&&v.scrollIntoView)v.scrollIntoView({behavior:'smooth',block:'start'});
 }
+function trkOcupado(si){
+  var btn=document.getElementById('trk-btn');btn.disabled=si;btn.firstChild.nodeValue=si?'BUSCANDO... ':'RASTREA ';
+}
 function trkBuscar(){
   var m=document.getElementById('trk-marca').value.trim(),c=document.getElementById('trk-codigo').value.trim();
-  var err=document.getElementById('trk-error'),btn=document.getElementById('trk-btn');
-  err.textContent='';
-  if(!m||!c){err.textContent='Escribe la marca única y el código de la representante.';return}
-  btn.disabled=true;btn.firstChild.nodeValue='BUSCANDO... ';
+  document.getElementById('trk-error').textContent='';
+  if(!c){document.getElementById('trk-error').textContent='Escribe el código de la representante.';return}
+  if(m){trkLista=null;trkDetalle(m,c)}else trkPorCodigo(c);
+}
+function trkPorCodigo(c){
+  var err=document.getElementById('trk-error');
+  trkOcupado(true);
+  sb.rpc('rastrear_por_codigo',{p_codigo:c}).then(function(res){
+    trkOcupado(false);
+    if(res.error){err.textContent='No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.';console.error(res.error);return}
+    var d=res.data||{};
+    if(!d.ok){
+      document.getElementById('trk-result').innerHTML='';trkLista=null;
+      err.textContent=d.error==='DEMASIADAS_CONSULTAS'?'Hay muchas consultas en poco tiempo. Espera unos minutos e inténtalo de nuevo.':'No encontramos boletas con ese código en los últimos 90 días. Revisa el código o agrega la marca única.';
+      return;
+    }
+    trkLista={c:c,d:d};
+    trkGuardar('cod:'+c.toLowerCase(),c,'Todas mis boletas');trkRecientes();
+    trkRenderLista(d,c);
+  });
+}
+function trkEtapaCorta(b){
+  if(b.estado==='rejected')return {t:'No encontrada en banco',k:'error'};
+  if(b.estado==='pending')return {t:'En validación en banco',k:'val'};
+  if(b.operado===true)return {t:'Operada',k:'ok'};
+  if(b.operado===false)return {t:'No operada',k:'warn'};
+  return {t:'En operatoria de cartera',k:'oper'};
+}
+function trkRenderLista(d,c){
+  var items=d.boletas.map(function(b){
+    var e=trkEtapaCorta(b);
+    return '<button class="trk-item" onclick="trkVer(\''+ea(b.marca)+'\')">'+
+      '<div class="ti-m"><strong>'+ea(b.marca)+'</strong><span>Transferencia '+ea(b.fecha)+'</span></div>'+
+      '<div class="ti-b">'+ea(b.banco)+' · '+ea(b.pais)+'<span>Enviada '+fmtTime(b.enviada)+'</span></div>'+
+      '<div class="ti-r"><b>'+ea(b.simbolo)+' '+fmt(b.monto)+'</b><span class="ti-pill p-'+e.k+'">'+e.t+'</span></div></button>';
+  }).join('');
+  document.getElementById('trk-result').innerHTML=
+    '<div class="trk-lista-t">Boletas recientes del código <strong>'+ea(c)+'</strong> <small>'+(d.total>d.boletas.length?'· las '+d.boletas.length+' más recientes de '+d.total:'· '+d.total+' en total')+' · últimos 90 días</small></div>'+
+    '<div class="trk-lista">'+items+'</div><div class="trk-lista-h">Toca una boleta para ver en qué etapa va.</div>';
+}
+function trkVer(marca){
+  var c=trkLista?trkLista.c:document.getElementById('trk-codigo').value.trim();
+  document.getElementById('trk-marca').value=marca;
+  trkDetalle(marca,c);
+}
+function trkVolver(){
+  if(!trkLista)return;
+  document.getElementById('trk-marca').value='';
+  trkRenderLista(trkLista.d,trkLista.c);
+}
+function trkDetalle(m,c){
+  var err=document.getElementById('trk-error');
+  trkOcupado(true);
   sb.rpc('rastrear_boleta',{p_marca:m,p_codigo:c}).then(function(res){
-    btn.disabled=false;btn.firstChild.nodeValue='RASTREA ';
+    trkOcupado(false);
     if(res.error){err.textContent='No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.';console.error(res.error);return}
     var d=res.data||{};
     if(!d.ok){
@@ -2177,7 +2247,7 @@ function trkRender(d){
     '<div class="trk-steps">'+steps+'</div>'+
     '<div class="trk-nota trk-nota-'+(est==='rejected'?'error':(op===false?'warn':(op===true?'ok':'info')))+'">'+nota+'</div>'+
     '<div class="trk-tabla e-'+(est==='rejected'?'error':(op===false?'warn':(op===true?'ok':'info')))+'">'+filas.map(function(f){return '<div class="trk-row"><div class="trk-k">'+ea(f[0])+'</div><div class="trk-v">'+ea(f[1])+'</div></div>'}).join('')+'</div>'+
-    '<div class="trk-act"><button class="btn-export alt" onclick="trkBuscar()">🔄 Actualizar</button><span>Actualizado '+new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})+'</span></div>';
+    '<div class="trk-act">'+(trkLista?'<button class="btn-export alt" onclick="trkVolver()">← Todas mis boletas</button>':'')+'<button class="btn-export alt" onclick="trkBuscar()">🔄 Actualizar</button><span>Actualizado '+new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})+'</span></div>';
 }
 
 /* ─── DASHBOARD DE OPERATORIA: filtros y gráficas con movimiento ─── */
