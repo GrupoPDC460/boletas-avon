@@ -643,6 +643,14 @@ body{display:block;min-height:100vh}
 .btn-export.alt{background:#fff;color:var(--pdc);border-color:var(--pdc)}
 .btn-export.alt:hover{background:rgba(0,33,111,.06)}
 @media(max-width:580px){.oper-export{margin-left:0;width:100%}.btn-export{flex:1;text-align:center}}
+
+/* Tarjetas de operatoria desplegables */
+.oper-body{display:none}
+.oper-body.open{display:block}
+.oper-head{cursor:pointer}
+.oper-head:hover{background:rgba(0,33,111,.03)}
+.oper-expand{margin-left:auto;display:flex;gap:8px}
+@media(max-width:580px){.oper-expand{margin-left:0}}
 </style>
 </head>
 <body>
@@ -827,6 +835,10 @@ body{display:block;min-height:100vh}
     <button class="filter-btn" onclick="setOperFilter('yes',this)">✅ Operadas</button>
     <button class="filter-btn" onclick="setOperFilter('no',this)">🚫 No operadas</button>
     <button class="filter-btn" onclick="setOperFilter('all',this)">Todas</button>
+  </div>
+  <div class="oper-expand">
+    <button class="df-clear" onclick="operToggleAll(true)">▾ Desplegar todas</button>
+    <button class="df-clear" onclick="operToggleAll(false)">▴ Contraer todas</button>
   </div>
   </div>
   <div id="oper-list"></div>
@@ -1619,7 +1631,7 @@ function renderBankBars(rows){
 }
 
 /* ─── OPERATORIA DE CARTERA ──────────────────── */
-var operFilter='pending',operPais='',operBanco='',operSem='';
+var operFilter='pending',operPais='',operBanco='',operSem='',operOpen={};
 function setOperFilter(f,btn){
   operFilter=f;
   document.querySelectorAll('#view-oper .filter-btn').forEach(function(x){x.classList.remove('active')});
@@ -1635,6 +1647,19 @@ function fillOperPais(allConf){
     return '<option value="'+ea(p.n)+'">'+ea(p.n)+' · '+(cnt[p.n]||0)+' por operar</option>';
   }).join('');
   sel.value=operPais;
+}
+function toggleOper(id){
+  operOpen[id]=!operOpen[id];
+  var card=document.getElementById('oc-'+id);if(!card)return;
+  card.querySelector('.oper-body').classList.toggle('open',!!operOpen[id]);
+  card.querySelector('.chev').classList.toggle('open',!!operOpen[id]);
+}
+function operToggleAll(open){
+  operViewRows().forEach(function(b){operOpen[b.id]=open});
+  document.querySelectorAll('#oper-list .oper-card').forEach(function(card){
+    card.querySelector('.oper-body').classList.toggle('open',open);
+    card.querySelector('.chev').classList.toggle('open',open);
+  });
 }
 function setOperSem(k){operSem=(operSem===k)?'':k;renderOper()}
 function semaforoSVG(act){
@@ -1784,15 +1809,16 @@ function renderOper(){
                (b.capturaUrl?'<img src="'+b.capturaUrl+'" alt="Captura" onclick="openLbUrl(\''+b.capturaUrl+'\',event)">':'');
     var semCls=(b.operado===null)?' oc-'+semOf(b).k:'';
     return '<div class="boleta-card oper-card'+semCls+'" id="oc-'+b.id+'">'+
-      '<div class="boleta-header">'+
+      '<div class="boleta-header oper-head" onclick="toggleOper('+b.id+')">'+
         '<span class="bank-badge '+bankClass(b.banco)+'">'+ea(bi.banco)+'</span>'+
         '<div class="boleta-info">'+
           '<div class="boleta-rep">'+(b.representante?ea(b.representante):'<span style="opacity:.5;font-style:italic">Sin nombre</span>')+(b.codigo?' · Cód. '+ea(b.codigo):'')+'</div>'+
           '<div class="boleta-meta">'+ea(bi.pais)+' · '+b.fecha+(b.zona?' · Zona '+ea(b.zona):'')+(b.numero?' · Boleta #'+ea(b.numero):'')+'</div>'+
         '</div>'+
         '<div class="boleta-right"><div class="boleta-amount">'+mon(b.banco,b.monto)+'</div>'+operBadge(b)+'</div>'+
+        '<div class="chev'+(operOpen[b.id]?' open':'')+'">▾</div>'+
       '</div>'+
-      '<div class="oper-body">'+
+      '<div class="oper-body'+(operOpen[b.id]?' open':'')+'">'+
         '<div class="oper-title">Resumen de gestión</div>'+
         '<div class="detail-grid">'+
           '<div><div class="d-lbl">Representante</div><div class="d-val">'+(b.representante?ea(b.representante):'—')+'</div></div>'+
@@ -1836,6 +1862,7 @@ function saveOper(id){
   sb.from('boletas').update({operado:operado,operatoria_nota:nota||null,operado_por:quien,operado_at:new Date().toISOString()}).eq('id',id).then(function(res){
     if(res.error){toast('warn','Error','No se pudo guardar la operatoria.');console.error(res.error);return}
     try{localStorage.setItem('oper_nombre',quien)}catch(e){}
+    operOpen[id]=false;
     addNotif(operado?'confirmed':'rejected','Operatoria de cartera: '+(operado?'operada':'no operada'),
       mon(b.banco,b.monto)+' · '+(b.representante||'Sin nombre')+(b.codigo?' (Cód. '+b.codigo+')':'')+' — por '+quien);
     toast('success','💼 Operatoria guardada','Quedó registrado a nombre de '+quien+'.');
