@@ -810,13 +810,13 @@ body.admin-on .admin-only{display:inline-block}
 .donut-wrap{display:flex;align-items:center;justify-content:center;gap:26px;flex-wrap:wrap}
 .donut-svg{width:190px;height:190px;flex:0 0 auto;filter:drop-shadow(0 8px 14px rgba(0,33,111,.14))}
 .donut-svg .dseg{transition:stroke-dasharray 1.6s cubic-bezier(.22,1,.36,1)}
-.d-num{font-family:var(--font);font-size:9px;font-weight:900;fill:#00216F}
-.d-lbl{font-family:var(--font);font-size:2.6px;font-weight:800;letter-spacing:.5px;fill:#606060}
-.d-legend{display:flex;flex-direction:column;gap:10px;min-width:170px}
-.d-leg{display:flex;align-items:center;gap:9px;font-size:.84rem;font-weight:700}
-.d-leg i{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
-.d-leg b{margin-left:auto;font-size:1.05rem;font-weight:900;color:var(--pdc)}
-.d-leg em{font-style:normal;font-size:.74rem;color:var(--text-muted);min-width:34px;text-align:right}
+.dn-num{font-family:var(--font);font-size:9px;font-weight:900;fill:#00216F}
+.dn-lbl{font-family:var(--font);font-size:2.6px;font-weight:800;letter-spacing:.5px;fill:#606060}
+.dn-legend{display:flex;flex-direction:column;gap:10px;min-width:170px}
+.dn-leg{display:flex;align-items:center;gap:9px;font-size:.84rem;font-weight:700}
+.dn-leg i{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
+.dn-leg b{margin-left:auto;font-size:1.05rem;font-weight:900;color:var(--pdc)}
+.dn-leg em{font-style:normal;font-size:.74rem;color:var(--text-muted);min-width:34px;text-align:right}
 @media(prefers-reduced-motion:reduce){.g-wave1,.g-wave2{animation:none}.g-level,.dbar-track .seg,.dtrend .tline,.dtrend .tarea,.donut-svg .dseg,.gauge-svg #gRingBar{transition:none}}
 
 .oper-reabrir{margin-top:12px}
@@ -2331,10 +2331,10 @@ function dopDonutHTML(n){
     start+=len});}
   return '<div class="donut-wrap"><svg class="donut-svg" viewBox="0 0 42 42" role="img" aria-label="Pendientes por semáforo">'+
     '<circle cx="21" cy="21" r="15.9155" fill="none" stroke="#E8EEF8" stroke-width="5.2"/>'+circles+
-    '<text x="21" y="22.2" text-anchor="middle" class="d-num">'+(tot?'<tspan id="dDonutNum">0</tspan>':'✓')+'</text>'+
-    '<text x="21" y="27.4" text-anchor="middle" class="d-lbl">'+(tot?'PENDIENTES':'AL DÍA')+'</text></svg>'+
-    '<div class="d-legend">'+segs.map(function(sg){
-      return '<div class="d-leg"><i style="background:'+sg.c+'"></i><span>'+sg.l+'</span><b>'+sg.v+'</b><em>'+(tot?Math.round(sg.v*100/tot):0)+'%</em></div>'}).join('')+'</div></div>';
+    '<text x="21" y="22.2" text-anchor="middle" class="dn-num">'+(tot?'<tspan id="dDonutNum">0</tspan>':'✓')+'</text>'+
+    '<text x="21" y="27.4" text-anchor="middle" class="dn-lbl">'+(tot?'PENDIENTES':'AL DÍA')+'</text></svg>'+
+    '<div class="dn-legend">'+segs.map(function(sg){
+      return '<div class="dn-leg"><i style="background:'+sg.c+'"></i><span>'+sg.l+'</span><b>'+sg.v+'</b><em>'+(tot?Math.round(sg.v*100/tot):0)+'%</em></div>'}).join('')+'</div></div>';
 }
 function renderDashOperView(rowsPeriod){
   dopFillFilters();
