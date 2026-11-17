@@ -451,6 +451,23 @@ input:focus,select:focus,textarea:focus{border-color:var(--pdc);box-shadow:0 0 3
 .oper-choice{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
 @media(max-width:580px){.oper-choice{grid-template-columns:1fr}}
 .oper-huella{margin-top:12px;padding:9px 12px;border-radius:10px;background:rgba(0,33,111,.06);border:1px solid rgba(0,33,111,.18);font-size:.78rem;color:var(--pdc)}
+
+.oper-res{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,33,111,.06)}
+.oper-res-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.oper-res-hint{font-size:.72rem;color:var(--text-muted)}
+.oper-res-pais{border-top:1px solid var(--border);padding:4px 0}
+.orr-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 8px;border-radius:10px;cursor:pointer;transition:background .15s}
+.orr-row:hover{background:rgba(0,33,111,.05)}
+.orr-row.sel{background:rgba(255,81,0,.1);outline:1px solid rgba(255,81,0,.4)}
+.orr-pais .orr-name{font-weight:800;color:var(--pdc);font-size:.92rem}
+.orr-bank{margin-left:14px}
+.orr-bank .orr-name{font-size:.8rem;font-weight:600}
+.orr-stats{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.orr-n{font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.orr-n.pend{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-border)}
+.orr-n.yes{background:var(--success-bg);color:var(--success);border:1px solid var(--success-border)}
+.orr-n.no{background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border)}
+.orr-money{font-size:.72rem;font-weight:800;color:var(--avon)}
 </style>
 </head>
 <body>
@@ -611,6 +628,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--pdc);box-shadow:0 0 3
     <div class="stat-card"><div class="stat-val rej" id="oc-no">0</div><div class="stat-lbl">No operadas</div></div>
     <div class="stat-card"><div class="stat-val tot" id="oc-tot">0</div><div class="stat-lbl">Confirmadas</div></div>
   </div>
+  <div id="oper-resumen"></div>
   <div class="filter-row">
     <button class="filter-btn active" onclick="setOperFilter('pending',this)">⏳ Por operar</button>
     <button class="filter-btn" onclick="setOperFilter('yes',this)">✅ Operadas</button>
@@ -1337,12 +1355,51 @@ function renderBankBars(rows){
 }
 
 /* ─── OPERATORIA DE CARTERA ──────────────────── */
-var operFilter='pending';
+var operFilter='pending',operPais='',operBanco='';
 function setOperFilter(f,btn){
   operFilter=f;
   document.querySelectorAll('#view-oper .filter-btn').forEach(function(x){x.classList.remove('active')});
   if(btn)btn.classList.add('active');
   renderOper();
+}
+function setOperScope(pais,banco){
+  if(operPais===pais&&operBanco===(banco||'')){operPais='';operBanco=''}
+  else{operPais=pais;operBanco=banco||''}
+  renderOper();
+}
+function clearOperScope(){operPais='';operBanco='';renderOper()}
+function renderOperResumen(conf){
+  var el=document.getElementById('oper-resumen');
+  var P={};
+  conf.forEach(function(b){
+    var bi=bancoInfo(b.banco);
+    var c=P[bi.pais]||(P[bi.pais]={pais:bi.pais,cur:bi.cur,pend:0,pendM:0,yes:0,no:0,banks:{}});
+    var k=c.banks[b.banco]||(c.banks[b.banco]={valor:b.banco,nombre:bi.banco,pend:0,pendM:0,yes:0,no:0});
+    var m=parseFloat(b.monto)||0;
+    if(b.operado===null){c.pend++;c.pendM+=m;k.pend++;k.pendM+=m}
+    else if(b.operado===true){c.yes++;k.yes++}
+    else{c.no++;k.no++}
+  });
+  var order=PAISES.map(function(x){return x.n}).filter(function(n){return P[n]});
+  if(!order.length){el.innerHTML='';return}
+  var cnt=function(o){return '<span class="orr-n pend">'+o.pend+' por operar</span><span class="orr-n yes">'+o.yes+' operadas</span><span class="orr-n no">'+o.no+' no operadas</span>'};
+  el.innerHTML='<div class="oper-res"><div class="oper-res-head"><div class="oper-title" style="margin:0">Resumen por país y banco</div>'+
+    ((operPais||operBanco)?'<button class="df-clear" onclick="clearOperScope()">Ver todos</button>':'<span class="oper-res-hint">Toca un país o banco para filtrar</span>')+'</div>'+
+    order.map(function(n){
+      var c=P[n],selP=operPais===n&&!operBanco;
+      var banks=Object.keys(c.banks).map(function(v){return c.banks[v]}).sort(function(a,b){return b.pend-a.pend||a.nombre.localeCompare(b.nombre)});
+      return '<div class="oper-res-pais'+(operPais===n?' open':'')+'">'+
+        '<div class="orr-row orr-pais'+(selP?' sel':'')+'" onclick="setOperScope(\''+n+'\')">'+
+          '<div class="orr-name">'+ea(n)+'</div>'+
+          '<div class="orr-stats">'+cnt(c)+(c.pend?'<span class="orr-money">'+c.cur+' '+fmt(c.pendM)+' pendiente</span>':'')+'</div></div>'+
+        banks.map(function(k){
+          var selB=operBanco===k.valor;
+          return '<div class="orr-row orr-bank'+(selB?' sel':'')+'" onclick="setOperScope(\''+n+'\',\''+ea(k.valor).replace(/'/g,"\\'")+'\')">'+
+            '<div class="orr-name">🏦 '+ea(k.nombre)+'</div>'+
+            '<div class="orr-stats">'+cnt(k)+(k.pend?'<span class="orr-money">'+c.cur+' '+fmt(k.pendM)+'</span>':'')+'</div></div>';
+        }).join('')+
+      '</div>';
+    }).join('')+'</div>';
 }
 function operBadge(b){
   if(b.operado===true)return '<span class="status-badge st-confirmed">✅ Operado</span>';
@@ -1351,7 +1408,13 @@ function operBadge(b){
 }
 function savedName(){try{return localStorage.getItem('oper_nombre')||''}catch(e){return ''}}
 function renderOper(){
-  var conf=boletas.filter(function(b){return b.status==='confirmed'});
+  var allConf=boletas.filter(function(b){return b.status==='confirmed'});
+  renderOperResumen(allConf);
+  var conf=allConf.filter(function(b){
+    if(operPais&&bancoInfo(b.banco).pais!==operPais)return false;
+    if(operBanco&&b.banco!==operBanco)return false;
+    return true;
+  });
   var nP=conf.filter(function(b){return b.operado===null}).length;
   var nY=conf.filter(function(b){return b.operado===true}).length;
   var nN=conf.filter(function(b){return b.operado===false}).length;
@@ -1363,7 +1426,7 @@ function renderOper(){
     return operFilter==='all'||(operFilter==='pending'&&b.operado===null)||(operFilter==='yes'&&b.operado===true)||(operFilter==='no'&&b.operado===false);
   });
   var list=document.getElementById('oper-list');
-  if(!rows.length){list.innerHTML='<div class="empty-state"><span class="empty-icon">📭</span>No hay boletas confirmadas en esta categoría</div>';return}
+  if(!rows.length){list.innerHTML='<div class="empty-state"><span class="empty-icon">📭</span>No hay boletas confirmadas en esta categoría'+((operPais||operBanco)?' para '+ea(operBanco?bancoInfo(operBanco).banco+' · '+operPais:operPais):'')+'</div>';return}
   list.innerHTML=rows.map(function(b){
     var bi=bancoInfo(b.banco);
     var who=b.operPor||savedName();
