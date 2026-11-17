@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#00216F">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="qrcode.js"></script>
 <style>
 :root{
   --bg:#0F0E1A;--bg2:#1A1830;--surface:#1E1B36;--surface2:#28244A;
@@ -606,6 +607,23 @@ body{display:block;min-height:100vh}
 .dash-oper-tbl{min-width:940px}
 .dash-note{font-size:.72rem;color:var(--text-muted);margin-top:12px;line-height:1.6}
 .dash-note strong{color:var(--pdc)}
+
+/* Compartir */
+.share-btn{margin-left:auto;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:20px;padding:5px 12px;font-size:.72rem;font-weight:800;cursor:pointer;font-family:var(--font);transition:all .15s;white-space:nowrap}
+.share-btn:hover{background:var(--avon);border-color:var(--avon)}
+.share-modal{max-width:380px;text-align:center}
+.share-modal .field{text-align:left}
+.share-qr{display:flex;justify-content:center;margin:4px 0 6px}
+.share-qr canvas{border:1px solid var(--border);border-radius:12px;max-width:100%;height:auto}
+.share-hint{font-size:.72rem;color:var(--text-muted);margin-bottom:12px}
+.share-modal #share-url{font-size:.74rem;text-align:center;margin-bottom:12px}
+.share-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.share-actions button{padding:10px 8px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font);font-weight:700;font-size:.78rem;cursor:pointer;transition:all .15s}
+.share-actions button:hover{border-color:var(--pdc);color:var(--pdc)}
+.share-actions .share-wa{background:#25D366;border-color:#25D366;color:#fff}
+.share-actions .share-wa:hover{background:#1ebe5b;color:#fff;border-color:#1ebe5b}
+.share-close{width:100%;padding:10px}
+@media(min-width:900px){.sidebar .sync-bar{flex-wrap:wrap;row-gap:10px}.sidebar .share-btn{margin-left:0;width:100%;padding:8px 12px;text-align:center}}
 </style>
 </head>
 <body>
@@ -642,7 +660,7 @@ body{display:block;min-height:100vh}
     📊 Dashboard
   </div>
 </div>
-<div class="sync-bar"><div class="sync-dot loading" id="sync-dot"></div><span id="sync-text">Conectando...</span></div>
+<div class="sync-bar"><div class="sync-dot loading" id="sync-dot"></div><span id="sync-text">Conectando...</span><button class="share-btn" onclick="openShare()">🔗 Compartir</button></div>
 </aside>
 <div class="content">
 <div class="admin-banner" id="admin-banner">🔓 Modo administrador activo — puedes editar y borrar solicitudes</div>
@@ -993,6 +1011,7 @@ function load(){
     var av=document.querySelector('.view.active');
     if(av&&av.id==='view-panel'){renderPanel();updateStats()}
     if(av&&av.id==='view-oper'){renderOper()}
+    if(av&&av.id==='view-dash'){renderDash()}
     if(av&&av.id==='view-notif'){renderNotifs()}
     if(!realtimeReady)subscribeRealtime();
   }).catch(function(err){
@@ -1642,7 +1661,7 @@ function renderOperResumen(conf){
       }).join('');
   }).join('');
   el.innerHTML='<div class="panel oper-tblpanel">'+
-    '<div class="oper-res-head"><div class="oper-title" style="margin:0">Resumen por país y banco</div>'+
+    '<div class="oper-res-head"><div class="oper-title" style="margin:0">Resumen por país y banco'+(operPais?' · '+ea(operPais):'')+'</div>'+
     ((operPais||operBanco)?'<button class="df-clear" onclick="clearOperScope()">Ver todos</button>':'<span class="oper-res-hint">Toca un país o banco para filtrar</span>')+'</div>'+
     '<div class="tbl-wrap"><table class="oper-tbl"><thead><tr><th>País / Banco</th><th>🔴 Crít.</th><th>🟠 Urg.</th><th>🟡 Atras.</th><th>🟢 A tiempo</th><th>Por operar</th><th>Operadas</th><th>No oper.</th><th>Pendiente</th></tr></thead><tbody>'+rows+
     '<tr class="tr-total"><td>Total</td>'+cells(T,'')+'</tr></tbody></table></div></div>';
@@ -1679,7 +1698,7 @@ function operBadge(b){
 function savedName(){try{return localStorage.getItem('oper_nombre')||''}catch(e){return ''}}
 function renderOper(){
   var allConf=boletas.filter(function(b){return b.status==='confirmed'});
-  renderOperResumen(allConf);
+  renderOperResumen(allConf.filter(function(b){return !operPais||bancoInfo(b.banco).pais===operPais}));
   fillOperPais(allConf);
   var conf=allConf.filter(function(b){
     if(operPais&&bancoInfo(b.banco).pais!==operPais)return false;
@@ -1771,6 +1790,65 @@ function saveOper(id){
     toast('success','💼 Operatoria guardada','Quedó registrado a nombre de '+quien+'.');
     refreshBoletas();
   });
+}
+
+/* ─── COMPARTIR (WhatsApp / QR) ─────────────── */
+var SHARE_BASE='https://grupopdc460.github.io/boletas-avon/';
+function shareUrl(){
+  var t=document.getElementById('share-page').value;
+  return SHARE_BASE+(t==='form'?'':'#'+t);
+}
+function shareMsg(){
+  var t=document.getElementById('share-page').value;
+  var nom=(PAGES[t]||PAGES.form)[0].replace(/^\S+\s/,'');
+  return 'Confirmación de Boletas · Avon CARD · Grupo PDC\n'+nom+'\n'+shareUrl();
+}
+function openShare(){
+  var av=document.querySelector('.view.active');
+  var cur=av?av.id.replace('view-',''):'form';
+  var sel=document.getElementById('share-page');
+  sel.value=PAGES[cur]?cur:'form';
+  document.getElementById('share-modal').classList.add('open');
+  document.getElementById('share-native').style.display=(navigator.share?'':'none');
+  renderShare();
+}
+function closeShare(){document.getElementById('share-modal').classList.remove('open')}
+function renderShare(){
+  var url=shareUrl();
+  document.getElementById('share-url').value=url;
+  var cv=document.getElementById('share-qr');
+  var wrap=document.getElementById('share-qr-wrap');
+  if(typeof qrcode!=='function'){wrap.style.display='none';return}
+  wrap.style.display='';
+  var qr=qrcode(0,'M');qr.addData(url);qr.make();
+  var n=qr.getModuleCount(),cell=Math.floor(240/(n+8)),q=4,size=cell*(n+q*2);
+  cv.width=size;cv.height=size;
+  var g=cv.getContext('2d');
+  g.fillStyle='#FFFFFF';g.fillRect(0,0,size,size);
+  g.fillStyle='#00216F';
+  for(var r=0;r<n;r++)for(var c=0;c<n;c++)if(qr.isDark(r,c))g.fillRect((c+q)*cell,(r+q)*cell,cell,cell);
+}
+function shareWA(){window.open('https://wa.me/?text='+encodeURIComponent(shareMsg()),'_blank','noopener')}
+function copyShare(){
+  var url=shareUrl();
+  var ok=function(){toast('success','📋 Enlace copiado','Ya puedes pegarlo donde quieras.')};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(ok,function(){fallbackCopy(url,ok)})}
+  else fallbackCopy(url,ok);
+}
+function fallbackCopy(url,ok){
+  var i=document.getElementById('share-url');i.value=url;i.select();
+  try{document.execCommand('copy');ok()}catch(e){toast('warn','No se pudo copiar','Selecciona el enlace y cópialo manualmente.')}
+}
+function downloadQR(){
+  var cv=document.getElementById('share-qr');
+  var t=document.getElementById('share-page').value;
+  var a=document.createElement('a');
+  a.download='qr-boletas-'+t+'.png';a.href=cv.toDataURL('image/png');
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+function shareNative(){
+  if(!navigator.share)return;
+  navigator.share({title:'Confirmación de Boletas · Avon CARD',text:shareMsg().split('\n').slice(0,2).join('\n'),url:shareUrl()}).catch(function(){});
 }
 
 /* ─── LIGHTBOX ───────────────────────────────── */
@@ -1901,6 +1979,7 @@ setInterval(function(){
 load();
 
 initPaises();
+(function(){var h=(location.hash||'').replace('#','');if(PAGES[h])switchTab(h)})();
 </script>
 <!-- ═══════════════ ADMIN ═══════════════ -->
 <button class="admin-toggle" id="admin-toggle" onclick="toggleAdmin()" title="Modo administrador">🔒</button>
@@ -1916,6 +1995,32 @@ initPaises();
       <button class="modal-cancel" onclick="closePin()">Cancelar</button>
       <button class="modal-save" onclick="checkPin()">Entrar</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-back" id="share-modal" onclick="if(event.target===this)closeShare()">
+  <div class="modal share-modal">
+    <h3>🔗 Compartir esta página</h3>
+    <div class="field">
+      <div class="label">Qué pantalla compartir</div>
+      <select id="share-page" onchange="renderShare()">
+        <option value="form">📤 Solicitud (enviar boleta)</option>
+        <option value="panel">✅ Gestión</option>
+        <option value="oper">💼 Operatoria de cartera</option>
+        <option value="notif">🔔 Alertas</option>
+        <option value="dash">📊 Dashboard</option>
+      </select>
+    </div>
+    <div class="share-qr" id="share-qr-wrap"><canvas id="share-qr" width="240" height="240"></canvas></div>
+    <div class="share-hint">Escanea el código con la cámara del celular</div>
+    <input type="text" id="share-url" readonly onclick="this.select()">
+    <div class="share-actions">
+      <button class="share-wa" onclick="shareWA()">💬 WhatsApp</button>
+      <button onclick="copyShare()">📋 Copiar enlace</button>
+      <button onclick="downloadQR()">⬇️ Descargar QR</button>
+      <button id="share-native" onclick="shareNative()" style="display:none">📤 Más opciones</button>
+    </div>
+    <button class="modal-cancel share-close" onclick="closeShare()">Cerrar</button>
   </div>
 </div>
 
