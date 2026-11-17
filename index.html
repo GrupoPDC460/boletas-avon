@@ -588,6 +588,19 @@ body{display:block;min-height:100vh}
 @media(min-width:900px){.dash-wrap{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 
 @media(max-width:899px){.sidebar .nav-tabs{overflow-x:auto}.tab{flex:0 0 auto;min-width:0;padding:13px 16px}}
+
+.oper-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.oper-toolbar .filter-row{margin-bottom:0}
+.oper-pais-filter{display:flex;align-items:center;gap:8px}
+.oper-pais-filter label{font-size:.72rem;font-weight:800;color:var(--pdc);text-transform:uppercase;letter-spacing:.5px}
+.oper-pais-filter select{width:auto;min-width:210px;padding:8px 12px;border-radius:20px;font-weight:700;font-size:.8rem;color:var(--pdc);border-color:var(--pdc);background:#fff}
+@media(max-width:580px){.oper-pais-filter{width:100%}.oper-pais-filter select{flex:1}}
+
+.oper-scopebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 3px rgba(0,33,111,.06)}
+.oper-scopebar label{font-size:.74rem;font-weight:800;color:var(--pdc);text-transform:uppercase;letter-spacing:.5px}
+.oper-scopebar select{width:auto;min-width:240px;padding:8px 12px;border-radius:20px;font-weight:700;font-size:.82rem;color:var(--pdc);border-color:var(--pdc);background:#fff}
+.oper-scope-hint{font-size:.72rem;color:var(--text-muted)}
+@media(max-width:580px){.oper-scopebar select{flex:1;min-width:0}}
 </style>
 </head>
 <body>
@@ -747,6 +760,7 @@ body{display:block;min-height:100vh}
 
 <!-- ═══════════════ OPERATORIA DE CARTERA ═══════════════ -->
 <div class="view" id="view-oper">
+  <div class="oper-scopebar"><span class="oper-scope-ico">🌎</span><label for="oper-pais">Ver por país</label><select id="oper-pais" onchange="onOperPais(this.value)"></select><span class="oper-scope-hint">Filtra contadores, semáforo y lista</span></div>
   <div class="stats-grid">
     <div class="stat-card"><div class="stat-val pend" id="oc-pend">0</div><div class="stat-lbl">Por operar</div></div>
     <div class="stat-card"><div class="stat-val conf" id="oc-yes">0</div><div class="stat-lbl">Operadas</div></div>
@@ -761,11 +775,13 @@ body{display:block;min-height:100vh}
     </div>
     <div id="oper-resumen"></div>
   </div>
+  <div class="oper-toolbar">
   <div class="filter-row">
     <button class="filter-btn active" onclick="setOperFilter('pending',this)">⏳ Por operar</button>
     <button class="filter-btn" onclick="setOperFilter('yes',this)">✅ Operadas</button>
     <button class="filter-btn" onclick="setOperFilter('no',this)">🚫 No operadas</button>
     <button class="filter-btn" onclick="setOperFilter('all',this)">Todas</button>
+  </div>
   </div>
   <div id="oper-list"></div>
 </div>
@@ -1506,6 +1522,16 @@ function setOperFilter(f,btn){
   if(btn)btn.classList.add('active');
   renderOper();
 }
+function onOperPais(v){operPais=v;operBanco='';renderOper()}
+function fillOperPais(allConf){
+  var sel=document.getElementById('oper-pais');if(!sel)return;
+  var cnt={};
+  allConf.forEach(function(b){if(b.operado===null){var n=bancoInfo(b.banco).pais;cnt[n]=(cnt[n]||0)+1}});
+  sel.innerHTML='<option value="">🌎 Todos los países</option>'+PAISES.map(function(p){
+    return '<option value="'+ea(p.n)+'">'+ea(p.n)+' · '+(cnt[p.n]||0)+' por operar</option>';
+  }).join('');
+  sel.value=operPais;
+}
 function setOperSem(k){operSem=(operSem===k)?'':k;renderOper()}
 function renderOperSem(conf){
   var el=document.getElementById('oper-sem');
@@ -1596,6 +1622,7 @@ function savedName(){try{return localStorage.getItem('oper_nombre')||''}catch(e)
 function renderOper(){
   var allConf=boletas.filter(function(b){return b.status==='confirmed'});
   renderOperResumen(allConf);
+  fillOperPais(allConf);
   var conf=allConf.filter(function(b){
     if(operPais&&bancoInfo(b.banco).pais!==operPais)return false;
     if(operBanco&&b.banco!==operBanco)return false;
