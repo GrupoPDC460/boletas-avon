@@ -826,6 +826,21 @@ body.admin-on .admin-only{display:inline-block}
 .pw-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:none;background:transparent;font-size:1.1rem;cursor:pointer;padding:6px 8px;border-radius:8px;line-height:1}
 .pw-eye:hover{background:rgba(0,33,111,.08)}
 .pw-case{font-size:.62rem;font-weight:600;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:6px}
+
+/* La visual no cambia entre fases: sin banner de administrador */
+.admin-banner,.admin-banner.show{display:none!important}
+
+/* Asignación de casos */
+.asig-chip{display:inline-block;padding:1px 8px;border-radius:20px;background:rgba(0,33,111,.08);border:1px solid rgba(0,33,111,.2);color:var(--pdc);font-weight:700;font-size:.68rem;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+.asig-chip.mine{background:rgba(255,81,0,.1);border-color:rgba(255,81,0,.4);color:#C2410C}
+.asig-sub{font-size:.66rem;color:var(--text-muted);font-weight:500;margin-top:2px}
+.oper-asignar{margin:0 0 14px}
+.oper-scopebar label[for="oper-asig"]{margin-left:6px}
+.asig-modal{max-width:440px}
+.asig-resumen{margin:4px 0 12px;padding:10px 12px;border-radius:10px;background:rgba(0,33,111,.06);border:1px solid rgba(0,33,111,.18);font-size:.8rem;color:var(--pdc)}
+.asig-vista{margin-top:4px;font-size:.7rem;color:var(--text-muted)}
+.asig-quitar{display:block;width:100%;margin-top:10px;padding:9px;border:none;background:transparent;color:var(--danger);font-family:var(--font);font-weight:800;font-size:.76rem;cursor:pointer;border-radius:10px}
+.asig-quitar:hover{background:var(--danger-bg)}
 </style>
 </head>
 <body>
@@ -1003,7 +1018,7 @@ body.admin-on .admin-only{display:inline-block}
 <!-- ═══════════════ OPERATORIA DE CARTERA ═══════════════ -->
 <div class="view" id="view-oper">
   <div class="oper-session" id="oper-session"></div>
-  <div class="oper-scopebar"><span class="oper-scope-ico">🌎</span><label for="oper-pais">Ver por país</label><select id="oper-pais" onchange="onOperPais(this.value)"></select><span class="oper-scope-hint">Filtra contadores, semáforo y lista</span><div class="oper-export"><button class="btn-export" onclick="exportOper('all')">⬇️ Exportar todo a Excel</button><button class="btn-export alt" onclick="exportOper('view')">Solo la vista actual</button></div></div>
+  <div class="oper-scopebar"><span class="oper-scope-ico">🌎</span><label for="oper-pais">Ver por país</label><select id="oper-pais" onchange="onOperPais(this.value)"></select><label for="oper-asig">Asignación</label><select id="oper-asig" onchange="onOperAsig(this.value)"></select><span class="oper-scope-hint">Filtra contadores, semáforo y lista</span><div class="oper-export"><button class="btn-export" onclick="exportOper('all')">⬇️ Exportar todo a Excel</button><button class="btn-export alt" onclick="exportOper('view')">Solo la vista actual</button><button class="btn-export alt admin-only" onclick="asigOpen('lote')">👥 Asignar casos</button></div></div>
   <div class="stats-grid">
     <div class="stat-card"><div class="stat-val pend" id="oc-pend">0</div><div class="stat-lbl">Por operar</div></div>
     <div class="stat-card"><div class="stat-val conf" id="oc-yes">0</div><div class="stat-lbl">Operadas</div></div>
@@ -1118,6 +1133,7 @@ body.admin-on .admin-only{display:inline-block}
             <button class="dop-chip active" id="dopc-pais" onclick="dopGroup('pais')">País</button>
             <button class="dop-chip" id="dopc-banco" onclick="dopGroup('banco')">Banco</button>
             <button class="dop-chip" id="dopc-agente" onclick="dopGroup('agente')">Agente</button>
+            <button class="dop-chip" id="dopc-asignado" onclick="dopGroup('asignado')">Asignado a</button>
           </div>
         </div>
         <div class="dbar-legend"><span><i class="s-ope"></i>Operadas</span><span><i class="s-por"></i>Por operar</span><span><i class="s-no"></i>No operadas</span></div>
@@ -1234,6 +1250,10 @@ function rowToBoleta(r){
     operNota:r.operatoria_nota,
     operPor:r.operado_por,
     operNombre:r.operado_nombre,
+    asigA:r.asignado_a,
+    asigNombre:r.asignado_nombre,
+    asigPor:r.asignado_por,
+    asigAt:r.asignado_at,
     evidenciaPath:r.evidencia_path,
     evidenciaUrl:pubUrl(r.evidencia_path),
     operAt:r.operado_at,
@@ -1716,6 +1736,13 @@ function toggle(id,e){
 var avonClave='';try{avonClave=sessionStorage.getItem('avon_clave')||''}catch(e){}
 var avonCb=null;
 function avonSave(){try{if(avonClave)sessionStorage.setItem('avon_clave',avonClave);else sessionStorage.removeItem('avon_clave')}catch(e){}}
+function mailIgual(a,b){return !!a&&!!b&&String(a).toLowerCase()===String(b).toLowerCase()}
+function puedeOperar(b){
+  if(!opSes)return false;
+  if(opSes.rol==='admin')return true;
+  if(b.asigA)return mailIgual(b.asigA,opSes.email);
+  return opSes.pais===bancoInfo(b.banco).pais;
+}
 function esAdmin(){return !!(opSes&&opSes.rol==='admin')}
 function gestionCred(){return esAdmin()?{p_clave:opSes.clave,p_email:opSes.email}:{p_clave:avonClave,p_email:null}}
 function adminCred(){return {p_email:opSes.email,p_clave:opSes.clave}}
@@ -1772,6 +1799,9 @@ function adminErr(d){
     CREDENCIALES_INVALIDAS:sesionAdminInvalida,
     SIN_PERMISO:function(){toast('warn','Solo administradores','Esta acción requiere un usuario administrador.')},
     DATOS_INVALIDOS:function(){toast('warn','Datos inválidos','Revisa fecha, monto y correo.')},
+    SIN_CASOS:function(){toast('warn','Sin casos','No hay casos para asignar con esos criterios.')},
+    DEMASIADOS_CASOS:function(){toast('warn','Demasiados casos','Asigna hasta 500 casos por vez.')},
+    OPERADOR_NO_VALIDO:function(){toast('warn','Persona no válida','Elige a alguien del equipo de operatoria.')},
     OPERADA_NO_CAMBIAR_ESTADO:function(){toast('warn','Boleta ya operada','No se puede cambiar el estado de una boleta con operatoria. Reabre la operatoria primero.')},
     NO_ESTA_OPERADA:function(){toast('warn','Sin operatoria','Esta boleta no tiene operatoria registrada.');refreshBoletas()},
     BOLETA_NO_ENCONTRADA:function(){toast('warn','Boleta no encontrada','Actualiza la página e inténtalo de nuevo.');refreshBoletas()},
@@ -2007,6 +2037,7 @@ function dopBarsHTML(conf){
     var bi=bancoInfo(b.banco),k,lbl,drill=true;
     if(dop.group==='pais'){k=bi.pais;lbl=bi.pais}
     else if(dop.group==='banco'){k=b.banco;lbl=bi.banco+' · '+bi.pais}
+    else if(dop.group==='asignado'){if(b.asigA){k=b.asigA;lbl=b.asigNombre||b.asigA}else{k='__libre__';lbl='Sin asignar';drill=false}}
     else{ if(b.operado===null){k='__pend__';lbl='Sin operar (pendientes)';drill=false}else{k=b.operPor||'—';lbl=b.operNombre||b.operPor||'—'} }
     var g=G[k]||(G[k]={k:k,l:lbl,ope:0,no:0,por:0,drill:drill});
     if(b.operado===null)g.por++;else if(b.operado===true)g.ope++;else g.no++;
@@ -2076,8 +2107,8 @@ function renderDashOperView(rowsPeriod){
   var conf=rows.filter(function(b){return b.status==='confirmed'});
   var cnt=document.getElementById('dop-count');
   if(cnt)cnt.textContent=rows.length+' boleta'+(rows.length!==1?'s':'')+' en la vista';
-  ['pais','banco','agente'].forEach(function(k){document.getElementById('dopc-'+k).classList.toggle('active',dop.group===k)});
-  document.getElementById('dop-group-name').textContent=({pais:'país',banco:'banco',agente:'agente'})[dop.group];
+  ['pais','banco','agente','asignado'].forEach(function(k){document.getElementById('dopc-'+k).classList.toggle('active',dop.group===k)});
+  document.getElementById('dop-group-name').textContent=({pais:'país',banco:'banco',agente:'agente',asignado:'persona asignada'})[dop.group];
 
   var por=conf.filter(function(b){return b.operado===null});
   var ope=conf.filter(function(b){return b.operado===true});
@@ -2189,7 +2220,7 @@ function renderBankBars(rows){
 }
 
 /* ─── OPERATORIA DE CARTERA ──────────────────── */
-var operFilter='pending',operPais='',operBanco='',operSem='',operOpen={},operFiles={};
+var operFilter='pending',operPais='',operBanco='',operSem='',operAsig='',operOpen={},operFiles={};
 function setOperFilter(f,btn){
   operFilter=f;
   document.querySelectorAll('#view-oper .filter-btn').forEach(function(x){x.classList.remove('active')});
@@ -2197,6 +2228,37 @@ function setOperFilter(f,btn){
   renderOper();
 }
 function onOperPais(v){operPais=v;operBanco='';renderOper()}
+function asigPasa(b){
+  if(!operAsig)return true;
+  if(operAsig==='free')return !b.asigA;
+  if(operAsig==='any')return !!b.asigA;
+  if(operAsig==='mine')return !!opSes&&mailIgual(b.asigA,opSes.email);
+  if(operAsig.indexOf('p:')===0)return mailIgual(b.asigA,operAsig.slice(2));
+  return true;
+}
+function onOperAsig(v){
+  operAsig=v;
+  if(v==='mine'||v.indexOf('p:')===0){operPais='';operBanco=''}   /* un caso asignado puede ser de cualquier país */
+  renderOper();
+}
+function misCasosN(){
+  if(!opSes)return 0;
+  return boletas.filter(function(b){return b.status==='confirmed'&&b.operado!==true&&mailIgual(b.asigA,opSes.email)}).length;
+}
+function fillOperAsig(allConf){
+  var sel=document.getElementById('oper-asig');if(!sel)return;
+  var abiertas=allConf.filter(function(b){return b.operado!==true});
+  var por={};abiertas.forEach(function(b){if(b.asigA){var k=b.asigA.toLowerCase();por[k]=por[k]||{n:0,nom:b.asigNombre||b.asigA};por[k].n++}});
+  var libres=abiertas.filter(function(b){return !b.asigA}).length;
+  var h='<option value="">👥 Todas</option>';
+  if(opSes)h+='<option value="mine">🙋 Mis casos · '+misCasosN()+'</option>';
+  h+='<option value="free">📭 Sin asignar · '+libres+'</option><option value="any">📌 Asignadas · '+(abiertas.length-libres)+'</option>';
+  Object.keys(por).sort(function(a,b){return por[a].nom.localeCompare(por[b].nom)}).forEach(function(k){
+    h+='<option value="p:'+ea(k)+'">👤 '+ea(por[k].nom)+' · '+por[k].n+'</option>';
+  });
+  sel.innerHTML=h;sel.value=operAsig;
+  if(sel.value!==operAsig){operAsig='';sel.value=''}
+}
 function fillOperPais(allConf){
   var sel=document.getElementById('oper-pais');if(!sel)return;
   var cnt={};
@@ -2205,6 +2267,103 @@ function fillOperPais(allConf){
     return '<option value="'+ea(p.n)+'">'+ea(p.n)+' · '+(cnt[p.n]||0)+' por operar</option>';
   }).join('');
   sel.value=operPais;
+}
+/* ─── ASIGNAR CASOS (solo administradores) ─── */
+var asigModo='lote',asigId=null,asigEquipo=null;
+function asigOpen(modo,id){
+  if(!esAdmin()){toast('warn','Solo administradores','Inicia sesión como administrador para asignar casos.');return}
+  asigModo=modo;asigId=id||null;
+  document.getElementById('asig-error').textContent='';
+  document.getElementById('asig-cant-wrap').style.display=modo==='lote'?'':'none';
+  document.getElementById('asig-libres-wrap').style.display=modo==='lote'?'':'none';
+  document.querySelector('#asig-modal h3').textContent=modo==='lote'?'👥 Asignar casos':'👥 Asignar '+marcaUnica(id);
+  document.getElementById('asig-modal').classList.add('open');
+  var c=adminCred();
+  if(asigEquipo){asigFill();return}
+  document.getElementById('asig-quien').innerHTML='<option>Cargando equipo...</option>';
+  sb.rpc('admin_equipo',{p_email:c.p_email,p_clave:c.p_clave}).then(function(res){
+    if(res.error){toast('warn','Error','No se pudo cargar el equipo.');console.error(res.error);asigClose();return}
+    var d=res.data||{};
+    if(!d.ok){asigClose();adminErr(d);return}
+    asigEquipo=d.equipo||[];asigFill();
+  });
+}
+function asigClose(){document.getElementById('asig-modal').classList.remove('open')}
+function asigFill(){
+  var carga={};
+  boletas.forEach(function(b){if(b.status==='confirmed'&&b.operado!==true&&b.asigA){var k=b.asigA.toLowerCase();carga[k]=(carga[k]||0)+1}});
+  var sel=document.getElementById('asig-quien');
+  sel.innerHTML=asigEquipo.map(function(m){
+    return '<option value="'+ea(m.email)+'">'+ea(m.nombre)+' · '+ea(m.pais)+' · '+(carga[m.email.toLowerCase()]||0)+' asignados</option>';
+  }).join('');
+  var cur=asigModo==='uno'?boletas.find(function(b){return b.id===asigId}):null;
+  if(cur&&cur.asigA)sel.value=cur.asigA;
+  var tot=asigCand().length;
+  var ci=document.getElementById('asig-cant');ci.max=tot;ci.value=Math.min(20,Math.max(1,tot));
+  asigResumen();
+}
+function asigCand(){
+  if(asigModo==='uno'){var b=boletas.find(function(x){return x.id===asigId});return (b&&b.status==='confirmed'&&b.operado!==true)?[b]:[]}
+  var rows=operViewRows().filter(function(b){return b.operado!==true});
+  if(document.getElementById('asig-libres').checked)rows=rows.filter(function(b){return !b.asigA});
+  return rows;
+}
+function vistaTxt(){
+  var t=[];
+  if(operPais)t.push('País: '+operPais);
+  if(operBanco)t.push('Banco: '+bancoInfo(operBanco).banco);
+  if(operSem)t.push('Semáforo: '+(SEM.filter(function(m){return m.k===operSem})[0]||{}).nom);
+  if(operAsig)t.push('Asignación: '+({mine:'mis casos',free:'sin asignar',any:'asignadas'}[operAsig]||'una persona'));
+  t.push(({pending:'Por operar',yes:'Operadas',no:'No operadas',all:'Todas'})[operFilter]);
+  return t.join(' · ');
+}
+function asigCantidad(){
+  var tot=asigCand().length,ci=document.getElementById('asig-cant');
+  var n=parseInt(ci.value,10);
+  if(isNaN(n)||n<1)n=1;
+  if(n>tot)n=tot;
+  return n;
+}
+function asigResumen(){
+  var el=document.getElementById('asig-resumen'),btn=document.getElementById('asig-btn');
+  if(!asigEquipo)return;
+  var cand=asigCand(),quien=document.getElementById('asig-quien');
+  var nom=quien.options[quien.selectedIndex]?quien.options[quien.selectedIndex].text.split(' · ')[0]:'';
+  if(asigModo==='uno'){
+    el.innerHTML=cand.length?'Se asignará <strong>'+marcaUnica(asigId)+'</strong> a <strong>'+ea(nom)+'</strong>.':'Este caso ya no se puede asignar.';
+    btn.disabled=!cand.length;return;
+  }
+  var n=asigCantidad();
+  el.innerHTML=cand.length
+    ?'Se asignarán <strong>'+n+'</strong> de <strong>'+cand.length+'</strong> casos a <strong>'+ea(nom)+'</strong>.<div class="asig-vista">Vista actual: '+ea(vistaTxt())+'</div>'
+    :'No hay casos para asignar con la vista actual.<div class="asig-vista">Vista actual: '+ea(vistaTxt())+'</div>';
+  btn.disabled=!cand.length;
+}
+function asigEnviar(ids,quien,msgOk){
+  var c=adminCred(),btn=document.getElementById('asig-btn');
+  btn.disabled=true;
+  sb.rpc('admin_asignar',{p_ids:ids,p_asignar_a:quien,p_email:c.p_email,p_clave:c.p_clave}).then(function(res){
+    btn.disabled=false;
+    if(res.error){toast('warn','Error','No se pudo guardar la asignación.');console.error(res.error);return}
+    var d=res.data||{};
+    if(!d.ok){adminErr(d);return}
+    asigClose();
+    toast('success','👥 '+msgOk(d.cambiados),d.omitidos?d.omitidos+' no se pudieron cambiar (ya operados o no confirmados).':'Quedó registrado en el historial.');
+    refreshBoletas();
+  });
+}
+function asigSubmit(){
+  var quien=document.getElementById('asig-quien').value;
+  var cand=asigCand();if(!cand.length)return;
+  var ids=(asigModo==='uno'?cand:cand.slice(0,asigCantidad())).map(function(b){return b.id});
+  var nom=document.getElementById('asig-quien').options[document.getElementById('asig-quien').selectedIndex].text.split(' · ')[0];
+  asigEnviar(ids,quien,function(n){return n+' caso'+(n!==1?'s':'')+' asignado'+(n!==1?'s':'')+' a '+nom});
+}
+function asigQuitar(){
+  var cand=(asigModo==='uno'?asigCand():operViewRows().filter(function(b){return b.operado!==true})).filter(function(b){return b.asigA});
+  if(!cand.length){toast('info','Nada que quitar','Ninguno de esos casos tiene asignación.');return}
+  if(!confirm('¿Quitar la asignación de '+cand.length+' caso'+(cand.length!==1?'s':'')+'?\n\nVolverán a poder operarlos las personas de su país.'))return;
+  asigEnviar(cand.map(function(b){return b.id}),null,function(n){return 'Asignación quitada de '+n+' caso'+(n!==1?'s':'')});
 }
 function toggleOper(id,fromBottom){
   operOpen[id]=!operOpen[id];
@@ -2335,9 +2494,11 @@ function renderOper(){
   var allConf=boletas.filter(function(b){return b.status==='confirmed'});
   renderOperResumen(allConf.filter(function(b){return !operPais||bancoInfo(b.banco).pais===operPais}));
   fillOperPais(allConf);
+  fillOperAsig(allConf);
   var conf=allConf.filter(function(b){
     if(operPais&&bancoInfo(b.banco).pais!==operPais)return false;
     if(operBanco&&b.banco!==operBanco)return false;
+    if(!asigPasa(b))return false;
     return true;
   });
   var nP=conf.filter(function(b){return b.operado===null}).length;
@@ -2379,18 +2540,19 @@ function renderOper(){
       '<div class="d-lbl">Resumen de la gestión</div>'+
       '<div class="d-val oper-cerrada-nota">'+(b.operNota?ea(b.operNota):'<span style="opacity:.55">Sin resumen</span>')+'</div>'+
       huella+(esAdmin()?'<button class="btn-edit oper-reabrir" onclick="adminReabrir('+b.id+')">🔓 Reabrir operatoria (administrador)</button>':'')+'</div>';
-    var puede=!!opSes&&(opSes.rol==='admin'||opSes.pais===bi.pais);
+    var puede=puedeOperar(b);
     var previo=(b.operado===false)?'<div class="d-lbl">Último registro: no operado</div><div class="d-val oper-cerrada-nota">'+(b.operNota?ea(b.operNota):'—')+'</div>'+huella:'';
     var sinAccesoHtml='<div class="oper-form oper-sinacceso"><div class="oper-title">Operatoria de cartera</div>'+
       (!opSes?'<div class="oper-cerrada-banner">🔐 Solo lectura · inicia sesión con tu correo y clave para registrar la operatoria.</div><button class="btn-primary" onclick="opLoginOpen()">🔐 Iniciar sesión</button>'
-             :'<div class="oper-cerrada-banner">🚫 Esta boleta es de <strong>'+ea(bi.pais)+'</strong>. Tu usuario opera boletas de <strong>'+ea(opSes.pais)+'</strong>.</div>')+previo+'</div>';
+             :(b.asigA?'<div class="oper-cerrada-banner">🚫 Este caso está asignado a <strong>'+ea(b.asigNombre||b.asigA)+'</strong>. Solo esa persona o un administrador puede operarlo.</div>'
+                     :'<div class="oper-cerrada-banner">🚫 Esta boleta es de <strong>'+ea(bi.pais)+'</strong>. Tu usuario opera boletas de <strong>'+ea(opSes.pais)+'</strong>.</div>'))+previo+'</div>';
     return '<div class="boleta-card oper-card'+semCls+'" id="oc-'+b.id+'">'+
       '<div class="boleta-header oper-head" onclick="toggleOper('+b.id+')">'+
         '<div class="oper-num'+(num?'':' done')+'" title="'+(num?'Turno '+num+' de '+nAbiertas+' en la cola actual':'Operatoria cerrada')+'">'+(num?'<strong>#'+num+'</strong><span>de '+nAbiertas+'</span>':'<strong>✓</strong><span>cerrada</span>')+'</div>'+
         '<span class="bank-badge '+bankClass(b.banco)+'">'+ea(bi.banco)+'</span>'+
         '<div class="boleta-info">'+
           '<div class="boleta-rep">'+(b.representante?ea(b.representante):'<span style="opacity:.5;font-style:italic">Sin nombre</span>')+(b.codigo?' · Cód. '+ea(b.codigo):'')+'</div>'+
-          '<div class="boleta-meta"><span class="marca">'+marcaUnica(b.id)+'</span> · '+ea(bi.pais)+' · '+b.fecha+(b.zona?' · Zona '+ea(b.zona):'')+(b.numero?' · Boleta #'+ea(b.numero):'')+'</div>'+
+          '<div class="boleta-meta"><span class="marca">'+marcaUnica(b.id)+'</span> · '+ea(bi.pais)+' · '+b.fecha+(b.zona?' · Zona '+ea(b.zona):'')+(b.numero?' · Boleta #'+ea(b.numero):'')+(b.asigA?' · <span class="asig-chip'+(opSes&&mailIgual(b.asigA,opSes.email)?' mine':'')+'">👤 '+ea(b.asigNombre||b.asigA)+'</span>':'')+'</div>'+
         '</div>'+
         '<div class="boleta-right"><div class="boleta-amount">'+mon(b.banco,b.monto)+'</div>'+operBadge(b)+'</div>'+
         '<div class="chev'+(operOpen[b.id]?' open':'')+'">▾</div>'+
@@ -2400,6 +2562,7 @@ function renderOper(){
         '<div class="detail-grid">'+
           '<div><div class="d-lbl">Marca única</div><div class="d-val"><span class="marca">'+marcaUnica(b.id)+'</span></div></div>'+
           '<div><div class="d-lbl">Turno en la cola</div><div class="d-val">'+(num?'<strong>#'+num+'</strong> de '+nAbiertas:'Cerrada')+'</div></div>'+
+          '<div><div class="d-lbl">Asignada a</div><div class="d-val">'+(b.asigA?ea(b.asigNombre||b.asigA)+'<div class="asig-sub">'+(b.asigPor?'por '+ea(b.asigPor)+' · ':'')+(b.asigAt?fmtTime(b.asigAt):'')+'</div>':'<span style="opacity:.6">Sin asignar</span>')+'</div></div>'+
           '<div><div class="d-lbl">Representante</div><div class="d-val">'+(b.representante?ea(b.representante):'—')+'</div></div>'+
           '<div><div class="d-lbl">Código</div><div class="d-val">'+(b.codigo?ea(b.codigo):'—')+'</div></div>'+
           '<div><div class="d-lbl"># de zona</div><div class="d-val">'+(b.zona?ea(b.zona):'—')+'</div></div>'+
@@ -2411,6 +2574,7 @@ function renderOper(){
           '<div><div class="d-lbl">Confirmada en banco</div><div class="d-val">'+(b.resolveTime||'—')+'</div></div>'+
         '</div>'+
         (thumbs?'<div class="oper-thumbs">'+thumbs+'</div>':'')+
+        (esAdmin()&&b.operado!==true?'<button class="btn-edit oper-asignar" onclick="asigOpen(\'uno\','+b.id+')">👥 '+(b.asigA?'Reasignar o quitar':'Asignar a alguien del equipo')+'</button>':'')+
         (b.evidenciaUrl?'<div class="oper-evid-badge">🧾 Evidencia de operatoria <img src="'+b.evidenciaUrl+'" alt="Evidencia" onclick="openLbUrl(\''+b.evidenciaUrl+'\',event)"></div>':'')+
         (cerrada?cerradaHtml:(!puede?sinAccesoHtml:('<div class="oper-form">'+
           '<div class="oper-title">Operatoria de cartera</div>'+
@@ -2446,7 +2610,7 @@ function operFile(id,input){
 function operSetFile(id,f,input){
   var bb=boletas.find(function(x){return x.id===id});
   if(bb&&bb.operado===true){operCerradaAviso();return}
-  if(bb&&(!opSes||(opSes.rol!=='admin'&&opSes.pais!==bancoInfo(bb.banco).pais))){toast('warn','Sin permiso','Inicia sesión con un usuario que opere este país para adjuntar evidencia.');return}
+  if(bb&&!puedeOperar(bb)){toast('warn','Sin permiso','Inicia sesión con un usuario que opere este país para adjuntar evidencia.');return}
   if(!/^image\//.test(f.type)){toast('warn','Solo imágenes','Adjunta una imagen (JPG, PNG, etc.).');if(input)input.value='';return}
   if(f.size>10*1024*1024){toast('warn','Archivo muy grande','La imagen no debe pasar de 10 MB.');if(input)input.value='';return}
   if(operFiles[id])URL.revokeObjectURL(operFiles[id].url);
@@ -2527,7 +2691,9 @@ function huellaHtml(b){
 function renderOperSession(){
   var el=document.getElementById('oper-session');if(!el)return;
   el.innerHTML=opSes
-    ?'<span class="ses-ico on">'+(opSes.rol==='admin'?'🛡️':'👤')+'</span><div class="ses-info"><strong>'+ea(opSes.nombre)+'</strong><span>'+ea(opSes.email)+' · '+(opSes.rol==='admin'?'Administrador · acceso total':'opera '+ea(opSes.pais))+'</span></div><button class="btn-export alt" onclick="opLogout()">Cerrar sesión</button>'
+    ?'<span class="ses-ico on">'+(opSes.rol==='admin'?'🛡️':'👤')+'</span><div class="ses-info"><strong>'+ea(opSes.nombre)+'</strong><span>'+ea(opSes.email)+' · '+(opSes.rol==='admin'?'Administrador · acceso total':'opera '+ea(opSes.pais))+'</span></div>'+
+      ((opSes.rol!=='admin'&&misCasosN()>0)?'<button class="btn-export" onclick="onOperAsig(\'mine\')">📌 '+misCasosN()+' caso'+(misCasosN()!==1?'s':'')+' asignado'+(misCasosN()!==1?'s':'')+' · Ver</button>':'')+
+      '<button class="btn-export alt" onclick="opLogout()">Cerrar sesión</button>'
     :'<span class="ses-ico">🔐</span><div class="ses-info"><strong>Modo lectura</strong><span>Inicia sesión con tu correo y clave para registrar operatorias</span></div><button class="btn-export" onclick="opLoginOpen()">Iniciar sesión</button>';
 }
 function opLoginOpen(){
@@ -2584,6 +2750,7 @@ function opErrorToast(d,id){
     PAIS_NO_AUTORIZADO:function(){toast('warn','Sin permiso','Esta boleta es de '+(d.pais_boleta||'otro país')+'. Tu usuario opera '+(d.pais_operador||'otro país')+'.')},
     NOTA_REQUERIDA:function(){toast('warn','Resumen requerido','Si no fue operada, escribe el motivo en el resumen de la gestión.')},
     ESTADO_REQUERIDO:function(){toast('warn','Falta el estado','Indica si la boleta fue operada o no.')},
+    ASIGNADA_A_OTRA_PERSONA:function(){toast('warn','Caso asignado','Este caso está asignado a '+(d.asignado_nombre||'otra persona')+'. Solo esa persona o un administrador puede operarlo.');refreshBoletas()},
     BOLETA_NO_CONFIRMADA:function(){toast('warn','Boleta no confirmada','Solo se opera una boleta ya confirmada en banco.');refreshBoletas()},
     BOLETA_NO_ENCONTRADA:function(){toast('warn','Boleta no encontrada','Actualiza la página e inténtalo de nuevo.');refreshBoletas()},
     DEMASIADOS_INTENTOS:function(){toast('warn','Demasiados intentos','Espera unos minutos e inténtalo de nuevo.')},
@@ -2595,7 +2762,7 @@ function saveOper(id){
   var b=boletas.find(function(x){return x.id===id});if(!b)return;
   if(b.operado===true){operCerradaAviso();refreshBoletas();return}
   if(!opSes){opLoginOpen();return}
-  if(opSes.rol!=='admin'&&bancoInfo(b.banco).pais!==opSes.pais){toast('warn','Sin permiso','Tu usuario opera boletas de '+opSes.pais+'.');return}
+  if(!puedeOperar(b)){toast('warn','Sin permiso',b.asigA?'Este caso está asignado a '+(b.asigNombre||b.asigA)+'.':'Tu usuario opera boletas de '+opSes.pais+'.');return}
   var ch=document.querySelector('input[name="oper-'+id+'"]:checked');
   var nota=document.getElementById('oper-nota-'+id).value.trim();
   if(!ch){toast('warn','Falta el estado','Indica si la boleta fue operada o no.');return}
@@ -2642,6 +2809,7 @@ function operViewRows(){
   var conf=boletas.filter(function(b){return b.status==='confirmed'}).filter(function(b){
     if(operPais&&bancoInfo(b.banco).pais!==operPais)return false;
     if(operBanco&&b.banco!==operBanco)return false;
+    if(!asigPasa(b))return false;
     return true;
   });
   var rows=conf.filter(function(b){
@@ -2661,7 +2829,7 @@ function toDate(iso){var t=Date.parse(iso||'');return isNaN(t)?null:new Date(t-n
 function dateOnly(f){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(f||'');return m?new Date(Date.UTC(+m[1],+m[2]-1,+m[3])):null}
 var XL_COLS=[
   ['ID',7],['País',16],['Banco',22],['Moneda',9],['Monto',14],['Fecha de transferencia',14],['Representante',26],['Código',12],['Zona',8],['# de boleta',14],['Correo',28],
-  ['Enviada',17],['Estado en banco',18],['Confirmada en banco',17],['Operatoria de cartera',18],['Semáforo',12],['Horas (pendiente / hasta operar)',16],['Resumen de la gestión',44],['Operado por (correo)',28],['Fecha de operatoria',17],['Evidencia de operatoria',22],['Correlativo (cola)',12],['Marca única',14],['Operado por (nombre)',30]
+  ['Enviada',17],['Estado en banco',18],['Confirmada en banco',17],['Operatoria de cartera',18],['Semáforo',12],['Horas (pendiente / hasta operar)',16],['Resumen de la gestión',44],['Operado por (correo)',28],['Fecha de operatoria',17],['Evidencia de operatoria',22],['Correlativo (cola)',12],['Marca única',14],['Operado por (nombre)',30],['Asignada a (nombre)',30],['Asignada a (correo)',30],['Asignada por',30],['Fecha de asignación',17]
 ];
 var xlCorr={};
 function xlRow(b){
@@ -2674,7 +2842,7 @@ function xlRow(b){
     else{var t0=Date.parse(b.resolveISO||b.submitISO||''),t1=Date.parse(b.operAt||'');if(!isNaN(t0)&&!isNaN(t1)&&t1>=t0)horas=Math.round((t1-t0)/36e5*10)/10}
   }
   return [b.id,bi.pais,bi.banco,bi.cur,parseFloat(b.monto)||0,dateOnly(b.fecha),b.representante||'',b.codigo||'',b.zona||'',b.numero||'',b.correo||'',
-    toDate(b.submitISO),estBanco,toDate(b.resolveISO),oper,sem,horas,b.operNota||'',b.operPor||'',toDate(b.operAt),b.evidenciaUrl||'',(xlCorr[b.id]||null),marcaUnica(b.id),b.operNombre||''];
+    toDate(b.submitISO),estBanco,toDate(b.resolveISO),oper,sem,horas,b.operNota||'',b.operPor||'',toDate(b.operAt),b.evidenciaUrl||'',(xlCorr[b.id]||null),marcaUnica(b.id),b.operNombre||'',b.asigNombre||'',b.asigA||'',b.asigPor||'',toDate(b.asigAt)];
 }
 var XL_FILL={'En tiempo':'FFD1FAE5','Atención':'FFFEF3C7','Crítica':'FFFEE2E2','Operado':'FFD1FAE5','No operado':'FFFEE2E2','Por operar':'FFFEF3C7','Confirmada en banco':'FFD1FAE5','No encontrada':'FFFEE2E2','En proceso':'FFFEF3C7'};
 var XL_FONT={'En tiempo':'FF15803D','Atención':'FFB45309','Crítica':'FFDC2626','Operado':'FF15803D','No operado':'FFDC2626','Por operar':'FFB45309','Confirmada en banco':'FF15803D','No encontrada':'FFDC2626','En proceso':'FFB45309'};
@@ -2699,7 +2867,7 @@ function xlBoletasSheet(wb,name,list){
     row.alignment={vertical:'middle'};
     row.getCell(5).numFmt='#,##0.00';
     row.getCell(6).numFmt='dd/mm/yyyy';
-    [12,14,20].forEach(function(c){row.getCell(c).numFmt='dd/mm/yyyy hh:mm'});
+    [12,14,20,28].forEach(function(c){row.getCell(c).numFmt='dd/mm/yyyy hh:mm'});
     row.getCell(17).numFmt='0.0';
     [13,15,16].forEach(function(c){
       var cell=row.getCell(c),v=cell.value;
@@ -2869,13 +3037,12 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLightbo
 
 /* ─── ADMIN ──────────────────────────────────── */
 function setAdminMode(on){
+  /* Sin banner ni cambios de diseño: la pantalla se ve igual con o sin sesión de administrador */
   adminMode=!!on;
-  var t=document.getElementById('admin-toggle'),bn=document.getElementById('admin-banner');
-  t.classList.toggle('on',adminMode);
+  var t=document.getElementById('admin-toggle');
   t.textContent=adminMode?'🔓':'🔒';
+  t.title=adminMode&&opSes?'Administrador: '+opSes.nombre+' · toca para cerrar sesión':'Iniciar sesión';
   document.body.classList.toggle('admin-on',adminMode);
-  bn.classList.toggle('show',adminMode);
-  if(adminMode&&opSes)bn.textContent='🔓 Administrador: '+opSes.nombre+' ('+opSes.email+') — acceso total al hub';
 }
 function toggleAdmin(){
   if(adminMode){opLogout()}
@@ -2982,6 +3149,19 @@ if(esAdmin())setAdminMode(true);
 </script>
 <!-- ═══════════════ ADMIN ═══════════════ -->
 <button class="admin-toggle" id="admin-toggle" onclick="toggleAdmin()" title="Modo administrador">🔒</button>
+
+<div class="modal-back" id="asig-modal" onclick="if(event.target===this)asigClose()">
+  <div class="modal asig-modal">
+    <h3>👥 Asignar casos</h3>
+    <div class="field"><div class="label">Asignar a</div><select id="asig-quien" onchange="asigResumen()"></select></div>
+    <div class="field" id="asig-cant-wrap"><div class="label">Cantidad <span class="pw-case">los más antiguos de la vista actual primero</span></div><input type="number" id="asig-cant" min="1" oninput="asigResumen()"></div>
+    <label class="share-solo" id="asig-libres-wrap"><input type="checkbox" id="asig-libres" checked onchange="asigResumen()"><span>Solo casos <strong>sin asignar</strong> (no tocar los que ya tienen responsable)</span></label>
+    <div class="asig-resumen" id="asig-resumen"></div>
+    <div class="op-login-error" id="asig-error"></div>
+    <div class="modal-actions"><button class="modal-cancel" onclick="asigClose()">Cancelar</button><button class="modal-save" id="asig-btn" onclick="asigSubmit()">Asignar</button></div>
+    <button class="asig-quitar" onclick="asigQuitar()">Quitar la asignación…</button>
+  </div>
+</div>
 
 <div class="modal-back" id="avon-modal" onclick="if(event.target===this)avonClose()">
   <div class="modal">
