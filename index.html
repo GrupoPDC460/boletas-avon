@@ -690,6 +690,14 @@ button.oper-upload{font-family:var(--font)}
 .cam-hint{font-size:.72rem;color:var(--text-muted);margin-top:6px;text-align:center}
 
 @media(hover:none) and (pointer:coarse){#view-form .paste-row{display:none}}
+
+/* Reemplazar / quitar comprobante */
+.file-chip{flex-wrap:wrap;gap:8px}
+.chip-actions{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.chip-btn{padding:6px 12px;border-radius:20px;border:1px solid var(--pdc);background:#fff;color:var(--pdc);font-family:var(--font);font-weight:800;font-size:.72rem;cursor:pointer;white-space:nowrap;transition:all .15s}
+.chip-btn:hover{background:rgba(0,33,111,.08)}
+.chip-btn.danger{border-color:var(--danger);color:var(--danger)}
+.chip-btn.danger:hover{background:var(--danger-bg)}
 </style>
 </head>
 <body>
@@ -798,7 +806,7 @@ button.oper-upload{font-family:var(--font)}
     <div class="upload-zone" id="upload-zone">
       <input type="file" accept="image/*,.pdf" id="file-input" onchange="handleFile(event)">
       <div class="upload-icon">☁️</div>
-      <div class="upload-text">Clic aquí o arrastra el comprobante</div>
+      <div class="upload-text" id="upload-text">Clic aquí o arrastra el comprobante</div>
       <div class="upload-hint">JPG, PNG o PDF · máx. 10 MB</div>
     </div>
     <input type="file" accept="image/*" capture="environment" id="cam-input" onchange="handleFile(event)" style="display:none">
@@ -813,6 +821,10 @@ button.oper-upload{font-family:var(--font)}
     </div>
     <div class="file-chip" id="file-chip">
       <span>📎</span><span id="file-chip-name"></span>
+      <span class="chip-actions">
+        <button type="button" class="chip-btn" onclick="replaceComprobante()">🔄 Reemplazar</button>
+        <button type="button" class="chip-btn danger" onclick="clearComprobante()">🗑 Quitar</button>
+      </span>
     </div>
   </div>
 
@@ -1274,11 +1286,32 @@ function compressImage(file,maxEdge,quality){
     img.src=url;
   });
 }
+function setUploadText(attached){
+  var t=document.getElementById('upload-text');
+  if(t)t.textContent=attached?'Clic aquí o arrastra otro archivo para reemplazar el comprobante':'Clic aquí o arrastra el comprobante';
+}
+function replaceComprobante(){
+  var fi=document.getElementById('file-input');
+  fi.value='';fi.click();
+}
+function clearComprobante(){
+  fileData=null;fileDataUrl=null;
+  var fi=document.getElementById('file-input');if(fi)fi.value='';
+  var ci=document.getElementById('cam-input');if(ci)ci.value='';
+  document.getElementById('preview-wrap').style.display='none';
+  document.getElementById('preview-img').src='';
+  document.getElementById('file-chip').style.display='none';
+  setUploadText(false);
+  toast('info','Comprobante quitado','Adjunta el comprobante correcto para poder enviar.');
+}
 function setComprobante(f,input){
   if(!(/^image\//.test(f.type)||f.type==='application/pdf')){toast('warn','Formato no válido','Adjunta una imagen o un PDF.');if(input)input.value='';return}
   var go=function(file){
     if(file.size>10*1024*1024){toast('warn','Archivo muy grande','El comprobante no debe pasar de 10 MB.');if(input)input.value='';return}
+    var eraReemplazo=!!fileData;
     fileData=file;
+    setUploadText(true);
+    if(eraReemplazo)toast('success','🔄 Comprobante reemplazado','Ahora se enviará: '+file.name);
     document.getElementById('file-chip-name').textContent=file.name;
     document.getElementById('file-chip').style.display='flex';
     if(file.type.startsWith('image/')){
@@ -1351,6 +1384,7 @@ function resetForm(){
   ['fecha','monto','representante','codigo','zona','numero-boleta','correo'].forEach(function(id){document.getElementById(id).value=''});
   document.getElementById('file-input').value='';
   var ci=document.getElementById('cam-input');if(ci)ci.value='';
+  setUploadText(false);
   document.getElementById('preview-wrap').style.display='none';
   document.getElementById('file-chip').style.display='none';
   fileData=null;fileDataUrl=null;
