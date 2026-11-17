@@ -624,6 +624,18 @@ body{display:block;min-height:100vh}
 .share-actions .share-wa:hover{background:#1ebe5b;color:#fff;border-color:#1ebe5b}
 .share-close{width:100%;padding:10px}
 @media(min-width:900px){.sidebar .sync-bar{flex-wrap:wrap;row-gap:10px}.sidebar .share-btn{margin-left:0;width:100%;padding:8px 12px;text-align:center}}
+
+/* Semáforo ejecutivo (3 niveles) */
+.sem-wrap{display:flex;align-items:center;gap:20px}
+.sem-light{flex:0 0 auto;line-height:0;filter:drop-shadow(0 8px 12px rgba(0,33,111,.28))}
+.sem-light svg{width:66px;height:auto;display:block}
+.oper-sempanel .sem-strip{flex:1;grid-template-columns:repeat(3,1fr);margin-bottom:0;gap:10px}
+.sem-d{display:none}
+.sem-card{padding:14px 8px}
+.sem-n{font-size:1.75rem}
+.sem-l{font-size:.74rem}
+@media(min-width:1400px){.oper-sempanel .sem-strip{grid-template-columns:1fr}}
+@media(max-width:420px){.sem-wrap{gap:12px}.sem-light svg{width:52px}.sem-card{padding:12px 4px}.sem-n{font-size:1.4rem}.sem-l{font-size:.64rem}}
 </style>
 </head>
 <body>
@@ -712,6 +724,11 @@ body{display:block;min-height:100vh}
     </div>
 
     <div class="field">
+      <div class="label"># de zona <span class="req">*</span></div>
+      <input type="text" id="zona" placeholder="Ej: 12" autocomplete="off" inputmode="numeric">
+    </div>
+
+    <div class="field">
       <div class="label"># de boleta <span class="opt-tag">Opcional</span></div>
       <input type="text" id="numero-boleta" placeholder="Número que aparece en el comprobante" autocomplete="off">
     </div>
@@ -794,7 +811,6 @@ body{display:block;min-height:100vh}
     <div class="panel oper-sempanel">
       <div class="oper-title">Semáforo de atención</div>
       <div id="oper-sem"></div>
-      <div class="sla-note">⏱ Meta de aplicación: <strong>24 horas</strong> desde que la boleta se confirma en banco.</div>
     </div>
     <div id="oper-resumen"></div>
   </div>
@@ -868,7 +884,7 @@ body{display:block;min-height:100vh}
     <div class="dash-panel dash-wide">
       <div class="dash-panel-title">💼 Medición de operatoria de cartera</div>
       <div class="tbl-wrap"><div id="dash-oper"></div></div>
-      <div class="dash-note"><strong>En proceso:</strong> enviadas, aún sin confirmar en banco · <strong>Por operar:</strong> confirmadas en banco, sin operatoria · <strong>Operadas:</strong> procesadas por cartera · <strong>% operado:</strong> sobre las confirmadas · <strong>Meta 24 h:</strong> operadas dentro de 24 horas desde la confirmación en banco.</div>
+      <div class="dash-note"><strong>En proceso:</strong> enviadas, aún sin confirmar en banco · <strong>Por operar:</strong> confirmadas en banco, sin operatoria · <strong>Operadas:</strong> procesadas por cartera · <strong>% operado:</strong> sobre las confirmadas · <strong>Meta 24 h:</strong> operadas dentro de 24 horas desde la confirmación en banco · <strong>Críticas:</strong> por operar con más de 24 horas.</div>
     </div>
   </div>
 </div>
@@ -956,6 +972,7 @@ function rowToBoleta(r){
     correo:r.correo,
     representante:r.representante,
     codigo:r.codigo_representante,
+    zona:r.zona,
     numero:r.numero_boleta,
     operado:(r.operado===true||r.operado===false)?r.operado:null,
     operNota:r.operatoria_nota,
@@ -1188,12 +1205,14 @@ function submitForm(){
   var correo=document.getElementById('correo').value;
   var repNom=document.getElementById('representante').value.trim();
   var codRep=document.getElementById('codigo').value.trim();
+  var zonaRep=document.getElementById('zona').value.trim();
   var numBol=document.getElementById('numero-boleta').value.trim();
   if(!banco){toast('warn','Banco requerido','Selecciona el país y el banco de procedencia.');return}
   if(!fecha){toast('warn','Fecha requerida','Ingresa la fecha de la boleta.');return}
   if(!monto||parseFloat(monto)<=0){toast('warn','Monto inválido','Ingresa un monto mayor a cero.');return}
   if(!repNom){toast('warn','Nombre requerido','Ingresa el nombre de la representante.');return}
   if(!codRep){toast('warn','Código requerido','Ingresa el código de la representante.');return}
+  if(!zonaRep){toast('warn','Zona requerida','Ingresa el # de zona de la representante.');return}
   if(!correo||!correo.includes('@')){toast('warn','Correo inválido','Ingresa un correo electrónico válido.');return}
   if(!fileData){toast('warn','Comprobante faltante','Debes adjuntar el Bach (comprobante bancario).');return}
 
@@ -1207,13 +1226,13 @@ function submitForm(){
     btn.textContent='Guardando...';
     return sb.from('boletas').insert({
       banco:banco.value,fecha:fecha,monto:montoF,correo:correo,
-      representante:rep||null,codigo_representante:codRep,numero_boleta:numBol||null,file_name:fileData.name,
+      representante:rep||null,codigo_representante:codRep,zona:zonaRep,numero_boleta:numBol||null,file_name:fileData.name,
       image_path:path,status:'pending'
     }).select().single();
   }).then(function(res){
     if(res.error)throw res.error;
     return addNotif('new','Nueva solicitud de confirmación',
-      mon(banco.value,montoF)+' · '+bancoInfo(banco.value).banco+' ('+bancoInfo(banco.value).pais+')'+(rep?' — '+rep:'')+' · Cód. '+codRep+(numBol?' · Boleta #'+numBol:'')+' · '+correo);
+      mon(banco.value,montoF)+' · '+bancoInfo(banco.value).banco+' ('+bancoInfo(banco.value).pais+')'+(rep?' — '+rep:'')+' · Cód. '+codRep+' · Zona '+zonaRep+(numBol?' · Boleta #'+numBol:'')+' · '+correo);
   }).then(function(){
     btn.disabled=false;btn.textContent='📨 Enviar solicitud de confirmación';
     resetForm();
@@ -1231,7 +1250,7 @@ function submitForm(){
 function resetForm(){
   var ch=document.querySelector('input[name="banco"]:checked');if(ch)ch.checked=false;
   document.querySelectorAll('.radio-opt').forEach(function(el){el.classList.remove('selected')});
-  ['fecha','monto','representante','codigo','numero-boleta','correo'].forEach(function(id){document.getElementById(id).value=''});
+  ['fecha','monto','representante','codigo','zona','numero-boleta','correo'].forEach(function(id){document.getElementById(id).value=''});
   document.getElementById('file-input').value='';
   document.getElementById('preview-wrap').style.display='none';
   document.getElementById('file-chip').style.display='none';
@@ -1337,7 +1356,7 @@ function renderPanel(){
         '<span class="bank-badge '+bkC+'">'+ea(bi.banco)+'</span>'+
         '<div class="boleta-info">'+
           '<div class="boleta-rep">'+(b.representante||'<span style="opacity:.5;font-style:italic">Sin nombre</span>')+'</div>'+
-          '<div class="boleta-meta">'+ea(bi.pais)+' · '+b.fecha+(b.codigo?' · Cód. '+ea(b.codigo):'')+' · '+b.correo+'</div>'+
+          '<div class="boleta-meta">'+ea(bi.pais)+' · '+b.fecha+(b.codigo?' · Cód. '+ea(b.codigo):'')+(b.zona?' · Zona '+ea(b.zona):'')+' · '+b.correo+'</div>'+
         '</div>'+
         '<div class="boleta-right">'+
           '<div class="boleta-amount">'+mon(b.banco,b.monto)+'</div>'+
@@ -1351,6 +1370,7 @@ function renderPanel(){
           '<div><div class="d-lbl">Monto</div><div class="d-val" style="color:var(--avon);font-weight:700">'+mon(b.banco,b.monto)+'</div></div>'+
           '<div><div class="d-lbl">Banco</div><div class="d-val">'+ea(bi.banco)+' · '+ea(bi.pais)+'</div></div>'+
           '<div><div class="d-lbl">Código representante</div><div class="d-val">'+(b.codigo?ea(b.codigo):'—')+'</div></div>'+
+          '<div><div class="d-lbl"># de zona</div><div class="d-val">'+(b.zona?ea(b.zona):'—')+'</div></div>'+
           '<div><div class="d-lbl"># de boleta</div><div class="d-val">'+(b.numero?ea(b.numero):'—')+'</div></div>'+
           '<div><div class="d-lbl">Correo</div><div class="d-val" style="font-size:.78rem">'+b.correo+'</div></div>'+
           (b.status==='confirmed'?'<div><div class="d-lbl">Operatoria de cartera</div><div class="d-val">'+operBadge(b)+'</div></div>':'')+
@@ -1610,15 +1630,39 @@ function fillOperPais(allConf){
   sel.value=operPais;
 }
 function setOperSem(k){operSem=(operSem===k)?'':k;renderOper()}
+function semaforoSVG(act){
+  var L=[
+    {k:'crit',cy:38, c1:'#FF9A8F',c2:'#DC2626',g:'#FF3B30'},
+    {k:'warn',cy:84, c1:'#FFE98A',c2:'#F59E0B',g:'#FFB800'},
+    {k:'ok',  cy:130,c1:'#8BEDAE',c2:'#15A34A',g:'#22C55E'}
+  ];
+  var defs='<linearGradient id="sl-h" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1B45A6"/><stop offset=".45" stop-color="#00216F"/><stop offset="1" stop-color="#00123F"/></linearGradient>'+
+    '<filter id="sl-b" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="4"/></filter>'+
+    L.map(function(l){return '<radialGradient id="sl-'+l.k+'" cx=".38" cy=".32" r=".75"><stop offset="0" stop-color="'+l.c1+'"/><stop offset="1" stop-color="'+l.c2+'"/></radialGradient>'}).join('');
+  var lamps=L.map(function(l){
+    var on=(l.k===act);
+    return '<circle cx="40" cy="'+l.cy+'" r="21" fill="#000C33"/>'+
+      (on?'<circle cx="40" cy="'+l.cy+'" r="19" fill="'+l.g+'" opacity=".6" filter="url(#sl-b)"/>':'')+
+      '<circle cx="40" cy="'+l.cy+'" r="16" fill="'+(on?'url(#sl-'+l.k+')':'#0C2466')+'"/>'+
+      (on?'':'<circle cx="40" cy="'+l.cy+'" r="16" fill="'+l.c2+'" opacity=".16"/>')+
+      '<ellipse cx="34" cy="'+(l.cy-7)+'" rx="8" ry="4.6" fill="#fff" opacity="'+(on?'.5':'.1')+'" transform="rotate(-24 34 '+(l.cy-7)+')"/>';
+  }).join('');
+  return '<svg viewBox="0 0 80 190" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Semáforo de atención"><defs>'+defs+'</defs>'+
+    '<rect x="25" y="170" width="30" height="7" rx="3.5" fill="#FF5100"/>'+
+    '<rect x="10" y="4" width="60" height="166" rx="20" fill="url(#sl-h)" stroke="#000C33" stroke-width="1.5"/>'+
+    '<rect x="13.5" y="7.5" width="53" height="159" rx="17" fill="none" stroke="#fff" stroke-opacity=".14"/>'+
+    lamps+'</svg>';
+}
 function renderOperSem(conf){
   var el=document.getElementById('oper-sem');
   var pend=conf.filter(function(b){return b.operado===null});
-  var n={ok:0,warn:0,high:0,crit:0};
+  var n={ok:0,warn:0,crit:0};
   pend.forEach(function(b){n[semOf(b).k]++});
-  el.innerHTML='<div class="sem-strip">'+SEM.map(function(m){
+  var act=n.crit?'crit':(n.warn?'warn':'ok');
+  el.innerHTML='<div class="sem-wrap"><div class="sem-light">'+semaforoSVG(act)+'</div><div class="sem-strip">'+SEM.map(function(m){
     return '<button class="sem-card sem-'+m.k+(operSem===m.k?' sel':'')+'" onclick="setOperSem(\''+m.k+'\')">'+
-      '<div class="sem-n">'+n[m.k]+'</div><div class="sem-l">'+m.ico+' '+m.nom+'</div><div class="sem-d">'+m.desc+'</div></button>';
-  }).join('')+'</div>';
+      '<div class="sem-n">'+n[m.k]+'</div><div class="sem-l">'+m.ico+' '+m.nom+'</div></button>';
+  }).join('')+'</div></div>';
   var eo=document.getElementById('badge-oper');
   if(eo)eo.classList.toggle('badge-crit',n.crit>0);
 }
@@ -1648,7 +1692,7 @@ function renderOperResumen(conf){
   if(!order.length){el.innerHTML='';return}
   var num=function(v,cls){return '<td class="'+(v?cls:'n0')+'">'+(v||'·')+'</td>'};
   var cells=function(o,cur){
-    return num(o.crit,'n-crit')+num(o.high,'n-high')+num(o.warn,'n-warn')+num(o.ok,'n-ok')+
+    return num(o.crit,'n-crit')+num(o.warn,'n-warn')+num(o.ok,'n-ok')+
       '<td><strong>'+o.pend+'</strong></td>'+num(o.yes,'n-yes')+num(o.no,'n-no')+
       '<td class="money">'+(o.pend&&cur?cur+' '+fmt(o.pendM):'—')+'</td>';
   };
@@ -1663,15 +1707,14 @@ function renderOperResumen(conf){
   el.innerHTML='<div class="panel oper-tblpanel">'+
     '<div class="oper-res-head"><div class="oper-title" style="margin:0">Resumen por país y banco'+(operPais?' · '+ea(operPais):'')+'</div>'+
     ((operPais||operBanco)?'<button class="df-clear" onclick="clearOperScope()">Ver todos</button>':'<span class="oper-res-hint">Toca un país o banco para filtrar</span>')+'</div>'+
-    '<div class="tbl-wrap"><table class="oper-tbl"><thead><tr><th>País / Banco</th><th>🔴 Crít.</th><th>🟠 Urg.</th><th>🟡 Atras.</th><th>🟢 A tiempo</th><th>Por operar</th><th>Operadas</th><th>No oper.</th><th>Pendiente</th></tr></thead><tbody>'+rows+
+    '<div class="tbl-wrap"><table class="oper-tbl"><thead><tr><th>País / Banco</th><th>🔴 Crítica</th><th>🟡 Atención</th><th>🟢 En tiempo</th><th>Por operar</th><th>Operadas</th><th>No oper.</th><th>Pendiente</th></tr></thead><tbody>'+rows+
     '<tr class="tr-total"><td>Total</td>'+cells(T,'')+'</tr></tbody></table></div></div>';
 }
 /* ─── SEMÁFORO DE ATENCIÓN (meta: 24 h desde la confirmación en banco) ─── */
 var SEM=[
-  {k:'ok',   ico:'🟢',nom:'En tiempo', max:24,  desc:'Hasta 24 h'},
-  {k:'warn', ico:'🟡',nom:'Atrasada',  max:72,  desc:'24 h a 3 días'},
-  {k:'high', ico:'🟠',nom:'Urgente',   max:168, desc:'3 a 7 días'},
-  {k:'crit', ico:'🔴',nom:'Crítica',   max:1e9, desc:'7 días o más'}
+  {k:'ok',  ico:'🟢',nom:'En tiempo', max:12},
+  {k:'warn',ico:'🟡',nom:'Atención',  max:24},
+  {k:'crit',ico:'🔴',nom:'Crítica',   max:1e9}
 ];
 function horasPend(b){
   var t=Date.parse(b.resolveISO||b.submitISO||'');
@@ -1738,7 +1781,7 @@ function renderOper(){
         '<span class="bank-badge '+bankClass(b.banco)+'">'+ea(bi.banco)+'</span>'+
         '<div class="boleta-info">'+
           '<div class="boleta-rep">'+(b.representante?ea(b.representante):'<span style="opacity:.5;font-style:italic">Sin nombre</span>')+(b.codigo?' · Cód. '+ea(b.codigo):'')+'</div>'+
-          '<div class="boleta-meta">'+ea(bi.pais)+' · '+b.fecha+(b.numero?' · Boleta #'+ea(b.numero):'')+'</div>'+
+          '<div class="boleta-meta">'+ea(bi.pais)+' · '+b.fecha+(b.zona?' · Zona '+ea(b.zona):'')+(b.numero?' · Boleta #'+ea(b.numero):'')+'</div>'+
         '</div>'+
         '<div class="boleta-right"><div class="boleta-amount">'+mon(b.banco,b.monto)+'</div>'+operBadge(b)+'</div>'+
       '</div>'+
@@ -1747,6 +1790,7 @@ function renderOper(){
         '<div class="detail-grid">'+
           '<div><div class="d-lbl">Representante</div><div class="d-val">'+(b.representante?ea(b.representante):'—')+'</div></div>'+
           '<div><div class="d-lbl">Código</div><div class="d-val">'+(b.codigo?ea(b.codigo):'—')+'</div></div>'+
+          '<div><div class="d-lbl"># de zona</div><div class="d-val">'+(b.zona?ea(b.zona):'—')+'</div></div>'+
           '<div><div class="d-lbl"># de boleta</div><div class="d-val">'+(b.numero?ea(b.numero):'—')+'</div></div>'+
           '<div><div class="d-lbl">Banco · País</div><div class="d-val">'+ea(bi.banco)+' · '+ea(bi.pais)+'</div></div>'+
           '<div><div class="d-lbl">Monto</div><div class="d-val" style="color:var(--avon);font-weight:700">'+mon(b.banco,b.monto)+'</div></div>'+
@@ -1916,6 +1960,7 @@ function openEdit(id,e){
   document.getElementById('e-monto').value=b.monto;
   document.getElementById('e-representante').value=b.representante||'';
   document.getElementById('e-codigo').value=b.codigo||'';
+  document.getElementById('e-zona').value=b.zona||'';
   document.getElementById('e-numero').value=b.numero||'';
   document.getElementById('e-correo').value=b.correo;
   document.getElementById('e-status').value=b.status;
@@ -1936,6 +1981,7 @@ function saveEdit(){
   var b=boletas.find(function(x){return x.id===editingId});
   var upd={banco:banco,fecha:fecha,monto:parseFloat(monto).toFixed(2),
     representante:rep||null,codigo_representante:document.getElementById('e-codigo').value.trim()||null,
+    zona:document.getElementById('e-zona').value.trim()||null,
     numero_boleta:document.getElementById('e-numero').value.trim()||null,correo:correo,status:status};
   // si pasa a confirmada/rechazada y no tenía resolución, marca hora
   if(status!=='pending'&&b&&!b.resolveTime)upd.resolve_time=new Date().toISOString();
@@ -2046,6 +2092,10 @@ initPaises();
     <div class="field">
       <div class="label">Código de la representante</div>
       <input type="text" id="e-codigo">
+    </div>
+    <div class="field">
+      <div class="label"># de zona</div>
+      <input type="text" id="e-zona">
     </div>
     <div class="field">
       <div class="label"># de boleta</div>
