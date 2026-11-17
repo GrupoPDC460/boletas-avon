@@ -820,6 +820,12 @@ body.admin-on .admin-only{display:inline-block}
 @media(prefers-reduced-motion:reduce){.g-wave1,.g-wave2{animation:none}.g-level,.dbar-track .seg,.dtrend .tline,.dtrend .tarea,.donut-svg .dseg,.gauge-svg #gRingBar{transition:none}}
 
 .oper-reabrir{margin-top:12px}
+
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:46px}
+.pw-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:none;background:transparent;font-size:1.1rem;cursor:pointer;padding:6px 8px;border-radius:8px;line-height:1}
+.pw-eye:hover{background:rgba(0,33,111,.08)}
+.pw-case{font-size:.62rem;font-weight:600;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:6px}
 </style>
 </head>
 <body>
@@ -2526,11 +2532,18 @@ function renderOperSession(){
 }
 function opLoginOpen(){
   document.getElementById('op-login-error').textContent='';
-  document.getElementById('op-clave').value='';
+  document.getElementById('op-clave').value='';document.getElementById('op-clave').type='password';
   var em=document.getElementById('op-email');
   try{em.value=localStorage.getItem('oper_email')||''}catch(e){}
   document.getElementById('op-login-modal').classList.add('open');
   setTimeout(function(){(em.value?document.getElementById('op-clave'):em).focus()},100);
+}
+function pwToggle(id,btn){
+  var i=document.getElementById(id);
+  var ver=i.type==='password';
+  i.type=ver?'text':'password';
+  btn.textContent=ver?'🙈':'👁';
+  i.focus();
 }
 function opLoginClose(){document.getElementById('op-login-modal').classList.remove('open')}
 function opLoginSubmit(){
@@ -2543,7 +2556,7 @@ function opLoginSubmit(){
     if(res.error){err.textContent='No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.';console.error(res.error);return}
     var d=res.data;
     if(!d||!d.ok){
-      err.textContent=(d&&d.error==='DEMASIADOS_INTENTOS')?'Demasiados intentos fallidos. Espera unos minutos e inténtalo de nuevo.':'Correo o clave incorrectos, o no tienes permiso para operar.';
+      err.textContent=(d&&d.error==='DEMASIADOS_INTENTOS')?'Demasiados intentos fallidos. Espera unos minutos e inténtalo de nuevo.':'Correo o clave incorrectos. Revisa mayúsculas y minúsculas: los administradores usan la clave Avon y los operadores de cartera su clave de operatoria.';
       document.getElementById('op-clave').value='';return;
     }
     opSes={email:d.email,nombre:d.nombre,pais:d.pais,rol:d.rol||'operador',clave:cl};opSave();
@@ -2973,7 +2986,7 @@ if(esAdmin())setAdminMode(true);
 <div class="modal-back" id="avon-modal" onclick="if(event.target===this)avonClose()">
   <div class="modal">
     <h3>🔑 Clave Avon · Gestión</h3>
-    <div class="field"><div class="label">Clave Avon</div><input type="password" id="avon-clave" placeholder="Clave Avon" autocomplete="current-password" onkeydown="if(event.key==='Enter')avonSubmit()"></div>
+    <div class="field"><div class="label">Clave Avon <span class="pw-case">distingue mayúsculas y minúsculas</span></div><div class="pw-wrap"><input type="password" id="avon-clave" placeholder="Clave Avon" autocomplete="current-password" onkeydown="if(event.key==='Enter')avonSubmit()"><button type="button" class="pw-eye" onclick="pwToggle('avon-clave',this)" title="Ver u ocultar la clave" aria-label="Ver u ocultar la clave">👁</button></div></div>
     <div class="op-login-error" id="avon-error"></div>
     <div class="modal-actions"><button class="modal-cancel" onclick="avonClose()">Cancelar</button><button class="modal-save" id="avon-btn" onclick="avonSubmit()">Entrar</button></div>
     <div class="op-login-note">Con la clave Avon puedes confirmar o rechazar boletas en Gestión.</div>
@@ -2984,7 +2997,7 @@ if(esAdmin())setAdminMode(true);
   <div class="modal">
     <h3>🔐 Iniciar sesión</h3>
     <div class="field"><div class="label">Correo</div><input type="email" id="op-email" placeholder="nombre.apellido@grupopdc.com" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('op-clave').focus()"></div>
-    <div class="field"><div class="label">Clave</div><input type="password" id="op-clave" placeholder="Tu clave" autocomplete="current-password" onkeydown="if(event.key==='Enter')opLoginSubmit()"></div>
+    <div class="field"><div class="label">Clave <span class="pw-case">distingue mayúsculas y minúsculas</span></div><div class="pw-wrap"><input type="password" id="op-clave" placeholder="Tu clave" autocomplete="current-password" onkeydown="if(event.key==='Enter')opLoginSubmit()"><button type="button" class="pw-eye" onclick="pwToggle('op-clave',this)" title="Ver u ocultar la clave" aria-label="Ver u ocultar la clave">👁</button></div></div>
     <div class="op-login-error" id="op-login-error"></div>
     <div class="modal-actions"><button class="modal-cancel" onclick="opLoginClose()">Cancelar</button><button class="modal-save" id="op-login-btn" onclick="opLoginSubmit()">Entrar</button></div>
     <div class="op-login-note">Operadores de cartera: clave de operatoria. Administradores: clave Avon. Cada acción queda registrada con tu correo.</div>
