@@ -441,6 +441,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--pdc);box-shadow:0 0 3
 .bar-occ{background:linear-gradient(90deg,#00216F,#2f4f9f);box-shadow:none}
 .bar-atl{background:linear-gradient(90deg,#E04800,#FF5100);box-shadow:none}
 .bar-gen{background:linear-gradient(90deg,#7DBFE6,#00216F);box-shadow:none}
+
+/* Operatoria de cartera */
+.oper-body{border-top:1px solid var(--border);padding:14px 16px}
+.oper-title{font-size:.72rem;font-weight:800;color:var(--pdc);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px}
+.oper-thumbs{display:flex;gap:8px;margin-bottom:14px}
+.oper-thumbs img{width:78px;height:78px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:zoom-in}
+.oper-form{border-top:1px dashed var(--border);padding-top:14px}
+.oper-choice{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+@media(max-width:580px){.oper-choice{grid-template-columns:1fr}}
+.oper-huella{margin-top:12px;padding:9px 12px;border-radius:10px;background:rgba(0,33,111,.06);border:1px solid rgba(0,33,111,.18);font-size:.78rem;color:var(--pdc)}
 </style>
 </head>
 <body>
@@ -468,6 +478,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--pdc);box-shadow:0 0 3
   <div class="tab" id="tab-notif" onclick="switchTab('notif')">
     🔔 Alertas
     <span class="badge badge-gold" id="badge-notif"></span>
+  </div>
+  <div class="tab" id="tab-oper" onclick="switchTab('oper')">
+    💼 Operatoria de cartera
+    <span class="badge badge-gold" id="badge-oper"></span>
   </div>
   <div class="tab" id="tab-dash" onclick="switchTab('dash')">
     📊 Dashboard
@@ -510,8 +524,18 @@ input:focus,select:focus,textarea:focus{border-color:var(--pdc);box-shadow:0 0 3
     </div>
 
     <div class="field">
-      <div class="label">Nombre de la representante <span class="opt-tag">Opcional</span></div>
+      <div class="label">Nombre de la representante <span class="req">*</span></div>
       <input type="text" id="representante" placeholder="Ej: Olga Marina Canales">
+    </div>
+
+    <div class="field">
+      <div class="label">Código de la representante <span class="req">*</span></div>
+      <input type="text" id="codigo" placeholder="Ej: 1234567" autocomplete="off">
+    </div>
+
+    <div class="field">
+      <div class="label"># de boleta <span class="opt-tag">Opcional</span></div>
+      <input type="text" id="numero-boleta" placeholder="Número que aparece en el comprobante" autocomplete="off">
     </div>
 
     <div class="field" style="margin-bottom:0">
@@ -577,6 +601,23 @@ input:focus,select:focus,textarea:focus{border-color:var(--pdc);box-shadow:0 0 3
 
   <div id="boletas-list"></div>
 
+</div>
+
+<!-- ═══════════════ OPERATORIA DE CARTERA ═══════════════ -->
+<div class="view" id="view-oper">
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-val pend" id="oc-pend">0</div><div class="stat-lbl">Por operar</div></div>
+    <div class="stat-card"><div class="stat-val conf" id="oc-yes">0</div><div class="stat-lbl">Operadas</div></div>
+    <div class="stat-card"><div class="stat-val rej" id="oc-no">0</div><div class="stat-lbl">No operadas</div></div>
+    <div class="stat-card"><div class="stat-val tot" id="oc-tot">0</div><div class="stat-lbl">Confirmadas</div></div>
+  </div>
+  <div class="filter-row">
+    <button class="filter-btn active" onclick="setOperFilter('pending',this)">⏳ Por operar</button>
+    <button class="filter-btn" onclick="setOperFilter('yes',this)">✅ Operadas</button>
+    <button class="filter-btn" onclick="setOperFilter('no',this)">🚫 No operadas</button>
+    <button class="filter-btn" onclick="setOperFilter('all',this)">Todas</button>
+  </div>
+  <div id="oper-list"></div>
 </div>
 
 <!-- ═══════════════ NOTIF ═══════════════ -->
@@ -716,6 +757,12 @@ function rowToBoleta(r){
     monto:parseFloat(r.monto).toFixed(2),
     correo:r.correo,
     representante:r.representante,
+    codigo:r.codigo_representante,
+    numero:r.numero_boleta,
+    operado:(r.operado===true||r.operado===false)?r.operado:null,
+    operNota:r.operatoria_nota,
+    operPor:r.operado_por,
+    operAt:r.operado_at,
     fileName:r.file_name,
     imagePath:r.image_path,
     capturaPath:r.captura_path,
@@ -764,6 +811,7 @@ function load(){
     setSS('ok','Conectado '+nowHM());
     var av=document.querySelector('.view.active');
     if(av&&av.id==='view-panel'){renderPanel();updateStats()}
+    if(av&&av.id==='view-oper'){renderOper()}
     if(av&&av.id==='view-notif'){renderNotifs()}
     if(!realtimeReady)subscribeRealtime();
   }).catch(function(err){
@@ -800,6 +848,7 @@ function refreshBoletas(){
     updateBadges();
     var av=document.querySelector('.view.active');
     if(av&&av.id==='view-panel'){renderPanel();updateStats()}
+    if(av&&av.id==='view-oper'&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#oper-list'))){renderOper()}
     if(av&&av.id==='view-dash'){renderDash()}
     setSS('ok','Actualizado '+nowHM());
   });
@@ -834,13 +883,14 @@ function uploadImage(file,prefix){
 
 /* ─── TABS ───────────────────────────────────── */
 function switchTab(t){
-  ['form','panel','notif','dash'].forEach(function(v){
+  ['form','panel','oper','notif','dash'].forEach(function(v){
     document.getElementById('view-'+v).classList.remove('active');
     document.getElementById('tab-'+v).classList.remove('active');
   });
   document.getElementById('view-'+t).classList.add('active');
   document.getElementById('tab-'+t).classList.add('active');
   if(t==='panel'){renderPanel();updateStats()}
+  if(t==='oper'){renderOper()}
   if(t==='notif'){renderNotifs();markNotifsRead()}
   if(t==='dash'){renderDash()}
 }
@@ -850,6 +900,9 @@ function updateBadges(){
   var p=boletas.filter(function(b){return b.status==='pending'}).length;
   var el=document.getElementById('badge-pend');
   el.textContent=p;el.style.display=p?'inline':'none';
+  var po=boletas.filter(function(b){return b.status==='confirmed'&&b.operado===null}).length;
+  var eo=document.getElementById('badge-oper');
+  if(eo){eo.textContent=po;eo.style.display=po?'inline':'none'}
 }
 function updateNotifBadge(){
   var u=notifs.filter(function(n){return !n.read}).length;
@@ -925,9 +978,14 @@ function submitForm(){
   var fecha=document.getElementById('fecha').value;
   var monto=document.getElementById('monto').value;
   var correo=document.getElementById('correo').value;
+  var repNom=document.getElementById('representante').value.trim();
+  var codRep=document.getElementById('codigo').value.trim();
+  var numBol=document.getElementById('numero-boleta').value.trim();
   if(!banco){toast('warn','Banco requerido','Selecciona el país y el banco de procedencia.');return}
   if(!fecha){toast('warn','Fecha requerida','Ingresa la fecha de la boleta.');return}
   if(!monto||parseFloat(monto)<=0){toast('warn','Monto inválido','Ingresa un monto mayor a cero.');return}
+  if(!repNom){toast('warn','Nombre requerido','Ingresa el nombre de la representante.');return}
+  if(!codRep){toast('warn','Código requerido','Ingresa el código de la representante.');return}
   if(!correo||!correo.includes('@')){toast('warn','Correo inválido','Ingresa un correo electrónico válido.');return}
   if(!fileData){toast('warn','Comprobante faltante','Debes adjuntar el Bach (comprobante bancario).');return}
 
@@ -941,13 +999,13 @@ function submitForm(){
     btn.textContent='Guardando...';
     return sb.from('boletas').insert({
       banco:banco.value,fecha:fecha,monto:montoF,correo:correo,
-      representante:rep||null,file_name:fileData.name,
+      representante:rep||null,codigo_representante:codRep,numero_boleta:numBol||null,file_name:fileData.name,
       image_path:path,status:'pending'
     }).select().single();
   }).then(function(res){
     if(res.error)throw res.error;
     return addNotif('new','Nueva solicitud de confirmación',
-      mon(banco.value,montoF)+' · '+bancoInfo(banco.value).banco+' ('+bancoInfo(banco.value).pais+')'+(rep?' — '+rep:'')+' · '+correo);
+      mon(banco.value,montoF)+' · '+bancoInfo(banco.value).banco+' ('+bancoInfo(banco.value).pais+')'+(rep?' — '+rep:'')+' · Cód. '+codRep+(numBol?' · Boleta #'+numBol:'')+' · '+correo);
   }).then(function(){
     btn.disabled=false;btn.textContent='📨 Enviar solicitud de confirmación';
     resetForm();
@@ -965,7 +1023,7 @@ function submitForm(){
 function resetForm(){
   var ch=document.querySelector('input[name="banco"]:checked');if(ch)ch.checked=false;
   document.querySelectorAll('.radio-opt').forEach(function(el){el.classList.remove('selected')});
-  ['fecha','monto','representante','correo'].forEach(function(id){document.getElementById(id).value=''});
+  ['fecha','monto','representante','codigo','numero-boleta','correo'].forEach(function(id){document.getElementById(id).value=''});
   document.getElementById('file-input').value='';
   document.getElementById('preview-wrap').style.display='none';
   document.getElementById('file-chip').style.display='none';
@@ -1071,7 +1129,7 @@ function renderPanel(){
         '<span class="bank-badge '+bkC+'">'+ea(bi.banco)+'</span>'+
         '<div class="boleta-info">'+
           '<div class="boleta-rep">'+(b.representante||'<span style="opacity:.5;font-style:italic">Sin nombre</span>')+'</div>'+
-          '<div class="boleta-meta">'+ea(bi.pais)+' · '+b.fecha+' · '+b.correo+'</div>'+
+          '<div class="boleta-meta">'+ea(bi.pais)+' · '+b.fecha+(b.codigo?' · Cód. '+ea(b.codigo):'')+' · '+b.correo+'</div>'+
         '</div>'+
         '<div class="boleta-right">'+
           '<div class="boleta-amount">'+mon(b.banco,b.monto)+'</div>'+
@@ -1084,7 +1142,10 @@ function renderPanel(){
           '<div><div class="d-lbl">Enviada</div><div class="d-val">'+b.submitTime+'</div></div>'+
           '<div><div class="d-lbl">Monto</div><div class="d-val" style="color:var(--avon);font-weight:700">'+mon(b.banco,b.monto)+'</div></div>'+
           '<div><div class="d-lbl">Banco</div><div class="d-val">'+ea(bi.banco)+' · '+ea(bi.pais)+'</div></div>'+
+          '<div><div class="d-lbl">Código representante</div><div class="d-val">'+(b.codigo?ea(b.codigo):'—')+'</div></div>'+
+          '<div><div class="d-lbl"># de boleta</div><div class="d-val">'+(b.numero?ea(b.numero):'—')+'</div></div>'+
           '<div><div class="d-lbl">Correo</div><div class="d-val" style="font-size:.78rem">'+b.correo+'</div></div>'+
+          (b.status==='confirmed'?'<div><div class="d-lbl">Operatoria de cartera</div><div class="d-val">'+operBadge(b)+'</div></div>':'')+
         '</div>'+
         '<div class="comprobante-wrap" id="cw-'+b.id+'">'+imgArea+'</div>'+
         imgHint+
@@ -1275,6 +1336,99 @@ function renderBankBars(rows){
   }).join('');
 }
 
+/* ─── OPERATORIA DE CARTERA ──────────────────── */
+var operFilter='pending';
+function setOperFilter(f,btn){
+  operFilter=f;
+  document.querySelectorAll('#view-oper .filter-btn').forEach(function(x){x.classList.remove('active')});
+  if(btn)btn.classList.add('active');
+  renderOper();
+}
+function operBadge(b){
+  if(b.operado===true)return '<span class="status-badge st-confirmed">✅ Operado</span>';
+  if(b.operado===false)return '<span class="status-badge st-rejected">🚫 No operado</span>';
+  return '<span class="status-badge st-pending">⏳ Por operar</span>';
+}
+function savedName(){try{return localStorage.getItem('oper_nombre')||''}catch(e){return ''}}
+function renderOper(){
+  var conf=boletas.filter(function(b){return b.status==='confirmed'});
+  var nP=conf.filter(function(b){return b.operado===null}).length;
+  var nY=conf.filter(function(b){return b.operado===true}).length;
+  var nN=conf.filter(function(b){return b.operado===false}).length;
+  document.getElementById('oc-pend').textContent=nP;
+  document.getElementById('oc-yes').textContent=nY;
+  document.getElementById('oc-no').textContent=nN;
+  document.getElementById('oc-tot').textContent=conf.length;
+  var rows=conf.filter(function(b){
+    return operFilter==='all'||(operFilter==='pending'&&b.operado===null)||(operFilter==='yes'&&b.operado===true)||(operFilter==='no'&&b.operado===false);
+  });
+  var list=document.getElementById('oper-list');
+  if(!rows.length){list.innerHTML='<div class="empty-state"><span class="empty-icon">📭</span>No hay boletas confirmadas en esta categoría</div>';return}
+  list.innerHTML=rows.map(function(b){
+    var bi=bancoInfo(b.banco);
+    var who=b.operPor||savedName();
+    var huella=b.operAt?'<div class="oper-huella">🧾 Registrado por <strong>'+ea(b.operPor||'—')+'</strong> · '+fmtTime(b.operAt)+'</div>':'';
+    var thumbs=(b.dataUrl?'<img src="'+b.dataUrl+'" alt="Comprobante" onclick="openLbUrl(\''+b.dataUrl+'\',event)">':'')+
+               (b.capturaUrl?'<img src="'+b.capturaUrl+'" alt="Captura" onclick="openLbUrl(\''+b.capturaUrl+'\',event)">':'');
+    return '<div class="boleta-card oper-card" id="oc-'+b.id+'">'+
+      '<div class="boleta-header">'+
+        '<span class="bank-badge '+bankClass(b.banco)+'">'+ea(bi.banco)+'</span>'+
+        '<div class="boleta-info">'+
+          '<div class="boleta-rep">'+(b.representante?ea(b.representante):'<span style="opacity:.5;font-style:italic">Sin nombre</span>')+(b.codigo?' · Cód. '+ea(b.codigo):'')+'</div>'+
+          '<div class="boleta-meta">'+ea(bi.pais)+' · '+b.fecha+(b.numero?' · Boleta #'+ea(b.numero):'')+'</div>'+
+        '</div>'+
+        '<div class="boleta-right"><div class="boleta-amount">'+mon(b.banco,b.monto)+'</div>'+operBadge(b)+'</div>'+
+      '</div>'+
+      '<div class="oper-body">'+
+        '<div class="oper-title">Resumen de gestión</div>'+
+        '<div class="detail-grid">'+
+          '<div><div class="d-lbl">Representante</div><div class="d-val">'+(b.representante?ea(b.representante):'—')+'</div></div>'+
+          '<div><div class="d-lbl">Código</div><div class="d-val">'+(b.codigo?ea(b.codigo):'—')+'</div></div>'+
+          '<div><div class="d-lbl"># de boleta</div><div class="d-val">'+(b.numero?ea(b.numero):'—')+'</div></div>'+
+          '<div><div class="d-lbl">Banco · País</div><div class="d-val">'+ea(bi.banco)+' · '+ea(bi.pais)+'</div></div>'+
+          '<div><div class="d-lbl">Monto</div><div class="d-val" style="color:var(--avon);font-weight:700">'+mon(b.banco,b.monto)+'</div></div>'+
+          '<div><div class="d-lbl">Fecha de transferencia</div><div class="d-val">'+b.fecha+'</div></div>'+
+          '<div><div class="d-lbl">Enviada</div><div class="d-val">'+b.submitTime+'</div></div>'+
+          '<div><div class="d-lbl">Confirmada en banco</div><div class="d-val">'+(b.resolveTime||'—')+'</div></div>'+
+        '</div>'+
+        (thumbs?'<div class="oper-thumbs">'+thumbs+'</div>':'')+
+        '<div class="oper-form">'+
+          '<div class="oper-title">Operatoria de cartera</div>'+
+          '<div class="oper-choice">'+
+            '<label class="radio-opt"><input type="radio" name="oper-'+b.id+'" value="si"'+(b.operado===true?' checked':'')+'><div class="radio-label">✅ Sí, fue operado</div></label>'+
+            '<label class="radio-opt"><input type="radio" name="oper-'+b.id+'" value="no"'+(b.operado===false?' checked':'')+'><div class="radio-label">🚫 No fue operado</div></label>'+
+          '</div>'+
+          '<div class="field"><div class="label">Resumen de la gestión <span class="opt-tag">Obligatorio si no fue operado</span></div>'+
+            '<textarea id="oper-nota-'+b.id+'" rows="3" placeholder="Qué se hizo en cartera, o el motivo si no se operó">'+ea(b.operNota||'')+'</textarea></div>'+
+          '<div class="field"><div class="label">Tu nombre (quien realiza la gestión) <span class="req">*</span></div>'+
+            '<input type="text" id="oper-quien-'+b.id+'" value="'+ea(who)+'" placeholder="Nombre y apellido" autocomplete="off"></div>'+
+          '<button class="btn-primary" onclick="saveOper('+b.id+')">💾 Guardar operatoria</button>'+
+          huella+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+function saveOper(id){
+  var b=boletas.find(function(x){return x.id===id});if(!b)return;
+  var ch=document.querySelector('input[name="oper-'+id+'"]:checked');
+  var nota=document.getElementById('oper-nota-'+id).value.trim();
+  var quien=document.getElementById('oper-quien-'+id).value.trim();
+  if(!ch){toast('warn','Falta el estado','Indica si la boleta fue operada o no.');return}
+  if(ch.value==='no'&&!nota){toast('warn','Resumen requerido','Si no fue operada, escribe el motivo en el resumen de la gestión.');return}
+  if(!quien||quien.length<3){toast('warn','Tu nombre es requerido','Escribe tu nombre para dejar constancia de quién realizó la gestión.');return}
+  if(!requireClave())return;
+  var operado=ch.value==='si';
+  sb.from('boletas').update({operado:operado,operatoria_nota:nota||null,operado_por:quien,operado_at:new Date().toISOString()}).eq('id',id).then(function(res){
+    if(res.error){toast('warn','Error','No se pudo guardar la operatoria.');console.error(res.error);return}
+    try{localStorage.setItem('oper_nombre',quien)}catch(e){}
+    addNotif(operado?'confirmed':'rejected','Operatoria de cartera: '+(operado?'operada':'no operada'),
+      mon(b.banco,b.monto)+' · '+(b.representante||'Sin nombre')+(b.codigo?' (Cód. '+b.codigo+')':'')+' — por '+quien);
+    toast('success','💼 Operatoria guardada','Quedó registrado a nombre de '+quien+'.');
+    refreshBoletas();
+  });
+}
+
 /* ─── LIGHTBOX ───────────────────────────────── */
 function openLb(id,e){
   if(e)e.stopPropagation();
@@ -1339,6 +1493,8 @@ function openEdit(id,e){
   document.getElementById('e-fecha').value=b.fecha;
   document.getElementById('e-monto').value=b.monto;
   document.getElementById('e-representante').value=b.representante||'';
+  document.getElementById('e-codigo').value=b.codigo||'';
+  document.getElementById('e-numero').value=b.numero||'';
   document.getElementById('e-correo').value=b.correo;
   document.getElementById('e-status').value=b.status;
   document.getElementById('edit-modal').classList.add('open');
@@ -1357,7 +1513,8 @@ function saveEdit(){
   }
   var b=boletas.find(function(x){return x.id===editingId});
   var upd={banco:banco,fecha:fecha,monto:parseFloat(monto).toFixed(2),
-    representante:rep||null,correo:correo,status:status};
+    representante:rep||null,codigo_representante:document.getElementById('e-codigo').value.trim()||null,
+    numero_boleta:document.getElementById('e-numero').value.trim()||null,correo:correo,status:status};
   // si pasa a confirmada/rechazada y no tenía resolución, marca hora
   if(status!=='pending'&&b&&!b.resolveTime)upd.resolve_time=new Date().toISOString();
   if(status==='pending')upd.resolve_time=null;
@@ -1431,6 +1588,14 @@ initPaises();
     <div class="field">
       <div class="label">Representante</div>
       <input type="text" id="e-representante" placeholder="Opcional">
+    </div>
+    <div class="field">
+      <div class="label">Código de la representante</div>
+      <input type="text" id="e-codigo">
+    </div>
+    <div class="field">
+      <div class="label"># de boleta</div>
+      <input type="text" id="e-numero">
     </div>
     <div class="field">
       <div class="label">Correo</div>
