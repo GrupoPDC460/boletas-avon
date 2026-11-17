@@ -862,6 +862,88 @@ body.admin-on .admin-only{display:inline-block}
 .asig-tbl td strong{color:var(--avon);font-size:.92rem}
 .asig-tbl tfoot td{background:var(--surface2);font-weight:800;color:var(--pdc);border-top:2px solid var(--pdc)}
 .asig-cargando{font-size:.8rem;color:var(--text-muted);padding:8px}
+
+/* ═══ Rastreo de boletas ═══ */
+.form-seg{margin-bottom:14px}
+.trk-wrap{max-width:920px}
+.trk-form{display:flex;gap:12px;flex-wrap:wrap;align-items:stretch}
+.trk-field{display:flex;flex:1 1 280px;min-width:0;cursor:text}
+.trk-lbl{display:flex;align-items:center;justify-content:center;text-align:center;padding:0 14px;background:#fff;color:var(--pdc);border:1px solid var(--pdc);border-right:none;border-radius:6px 0 0 6px;font-weight:800;font-size:.72rem;letter-spacing:.3px;min-width:104px;max-width:150px}
+.trk-field input{flex:1;min-width:0;border:1px solid var(--pdc);border-radius:0 6px 6px 0;background:var(--pdc);color:#fff;padding:14px 16px;font-size:1rem;font-weight:700;font-family:var(--font);letter-spacing:.5px}
+.trk-field input::placeholder{color:rgba(255,255,255,.55);font-weight:500;letter-spacing:0}
+.trk-field input:focus{outline:none;box-shadow:0 0 0 3px rgba(255,81,0,.35);border-color:var(--avon)}
+.trk-btn{flex:0 0 auto;padding:0 28px;min-height:52px;border:none;border-radius:8px;background:var(--avon);color:#fff;font-family:var(--font);font-weight:900;font-size:.95rem;letter-spacing:.6px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.trk-btn:hover{background:var(--avon-deep);box-shadow:0 8px 20px rgba(255,81,0,.28)}
+.trk-btn:disabled{opacity:.65;cursor:wait}
+.trk-hint{font-size:.76rem;color:var(--text-muted);margin:10px 2px 14px}
+.trk-hint strong{color:var(--pdc)}
+.trk-rec-t{font-size:.68rem;font-weight:800;color:var(--pdc);text-transform:uppercase;letter-spacing:.5px;margin:2px 2px 8px}
+.trk-rec{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.trk-chip{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:8px 14px;border:1px solid var(--border);border-radius:12px;background:#fff;cursor:pointer;font-family:var(--font);text-align:left;transition:all .15s}
+.trk-chip:hover{border-color:var(--pdc);box-shadow:0 2px 8px rgba(0,33,111,.12)}
+.trk-chip strong{font-size:.8rem;color:var(--pdc);font-family:ui-monospace,Menlo,Consolas,monospace}
+.trk-chip span{font-size:.7rem;color:var(--text-muted)}
+.trk-error{min-height:0;font-size:.82rem;font-weight:700;color:var(--danger);margin-bottom:6px}
+.trk-error:not(:empty){padding:10px 14px;background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:10px;margin-bottom:14px}
+/* línea de etapas */
+.trk-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;margin:22px 0 14px}
+.trk-step{display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 6px;position:relative}
+.trk-t{font-weight:900;font-size:.78rem;line-height:1.15;color:var(--pdc);min-height:2.4em;display:flex;align-items:flex-end;justify-content:center;letter-spacing:.2px}
+.trk-node{position:relative;width:34px;height:34px;margin:12px 0 14px;border-radius:50%;background:#D5DCE8;display:flex;align-items:center;justify-content:center;z-index:2;animation:trkPop .5s cubic-bezier(.34,1.56,.64,1) both;animation-delay:calc(var(--i)*.2s)}
+.trk-node b{color:#fff;font-size:1rem;font-weight:900;line-height:1}
+.trk-step:not(:last-child)::before{content:'';position:absolute;top:calc(2.4em + 12px + 14.5px);left:calc(50% + 17px);right:calc(-50% + 17px);height:5px;background:#D5DCE8;border-radius:3px;z-index:1}
+.trk-step:not(:last-child)::after{content:'';position:absolute;top:calc(2.4em + 12px + 14.5px);left:calc(50% + 17px);right:calc(-50% + 17px);height:5px;background:#5BB318;border-radius:3px;z-index:1;transform:scaleX(0);transform-origin:left;transition:transform .6s ease;transition-delay:calc(var(--i)*.2s + .25s)}
+.trk-step.conecta:not(:last-child)::after{transform:scaleX(1)}
+.s-done .trk-node{background:#5BB318}
+.s-current .trk-node{background:var(--avon);animation:trkPop .5s cubic-bezier(.34,1.56,.64,1) both,trkPulse 1.8s ease-out infinite;animation-delay:calc(var(--i)*.2s),calc(var(--i)*.2s + .6s)}
+.s-error .trk-node{background:#DC2626}
+.s-warn .trk-node{background:#F59E0B}
+.trk-card{width:100%;max-width:150px;aspect-ratio:1.25;border-radius:12px;background:linear-gradient(135deg,#0a2f8f,#00216F 55%,#001440);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(0,33,111,.28);animation:trkFade .6s ease both;animation-delay:calc(var(--i)*.2s + .1s)}
+.trk-card svg{width:54%;height:auto}
+.s-todo .trk-card{opacity:.38;filter:grayscale(.55)}
+.s-current .trk-card{outline:3px solid var(--avon);outline-offset:2px}
+.s-error .trk-card{outline:3px solid #DC2626;outline-offset:2px}
+.trk-d{font-size:.68rem;color:var(--text-muted);margin-top:8px;min-height:1.6em;line-height:1.3;font-weight:600}
+.trk-nota{margin:6px 0 18px;padding:12px 16px;border-radius:12px;font-size:.84rem;font-weight:700;text-align:center}
+.trk-nota-info{background:rgba(0,33,111,.06);border:1px solid rgba(0,33,111,.18);color:var(--pdc)}
+.trk-nota-ok{background:var(--success-bg);border:1px solid var(--success-border);color:var(--success)}
+.trk-nota-warn{background:var(--warn-bg);border:1px solid var(--warn-border);color:var(--warn)}
+.trk-nota-error{background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger)}
+/* tabla de detalle */
+.trk-tabla{max-width:760px;margin:0 auto}
+.trk-row{display:grid;grid-template-columns:minmax(120px,210px) 1fr;margin-bottom:10px}
+.trk-k{display:flex;align-items:center;justify-content:center;text-align:center;padding:14px 10px;background:#fff;color:var(--pdc);border:1px solid var(--pdc);border-right:none;border-radius:6px 0 0 6px;font-weight:800;font-size:.8rem}
+.trk-v{display:flex;align-items:center;padding:14px 18px;background:var(--pdc);color:#fff;border-radius:0 6px 6px 0;font-weight:700;font-size:.9rem;word-break:break-word}
+.trk-row:first-child .trk-v{background:var(--avon)}
+.trk-act{display:flex;align-items:center;gap:12px;justify-content:center;margin-top:16px;font-size:.74rem;color:var(--text-muted)}
+.trk-link{margin-top:8px;padding:8px 16px;border:none;border-radius:20px;background:var(--pdc);color:#fff;font-family:var(--font);font-weight:800;font-size:.78rem;cursor:pointer}
+.trk-link:hover{background:#00164d}
+@keyframes trkPop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes trkFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes trkPulse{0%{box-shadow:0 0 0 0 rgba(255,81,0,.55)}70%{box-shadow:0 0 0 14px rgba(255,81,0,0)}100%{box-shadow:0 0 0 0 rgba(255,81,0,0)}}
+@media(max-width:700px){
+  .trk-steps{grid-template-columns:1fr;gap:0;margin-top:16px}
+  .trk-step{display:grid;grid-template-columns:34px 78px 1fr;grid-template-areas:"n c t" "n c d";align-items:center;column-gap:14px;row-gap:2px;text-align:left;padding:0 0 18px}
+  .trk-t{grid-area:t;min-height:0;justify-content:flex-start;align-items:flex-end;font-size:.82rem}
+  .trk-node{grid-area:n;margin:0}
+  .trk-card{grid-area:c;max-width:78px;aspect-ratio:1.25}
+  .trk-d{grid-area:d;margin:0;align-self:start}
+  .trk-step:not(:last-child)::before,.trk-step:not(:last-child)::after{top:34px;bottom:0;left:16px;right:auto;width:5px;height:auto}
+  .trk-step:not(:last-child)::after{transform:scaleY(0);transform-origin:top}
+  .trk-step.conecta:not(:last-child)::after{transform:scaleY(1)}
+  .trk-row{grid-template-columns:1fr}
+  .trk-k{border-right:1px solid var(--pdc);border-bottom:none;border-radius:6px 6px 0 0;padding:8px}
+  .trk-v{border-radius:0 0 6px 6px}
+  .trk-lbl{max-width:none;padding:6px 12px;border-right:1px solid var(--pdc);border-bottom:none;border-radius:6px 6px 0 0;min-height:0}
+  .trk-field{flex-direction:column}
+  .trk-field input{border-radius:0 0 6px 6px}
+  .trk-btn{width:100%}
+}
+@media(prefers-reduced-motion:reduce){.trk-node,.trk-card,.s-current .trk-node{animation:none}.trk-step::after{transition:none}}
+
+.trk-tabla.e-error .trk-row:first-child .trk-v{background:#DC2626}
+.trk-tabla.e-warn .trk-row:first-child .trk-v{background:#D97706}
+.trk-tabla.e-ok .trk-row:first-child .trk-v{background:#15803D}
 </style>
 </head>
 <body>
@@ -902,7 +984,7 @@ body.admin-on .admin-only{display:inline-block}
 </aside>
 <div class="content">
 <div class="admin-banner" id="admin-banner">🔓 Modo administrador activo — puedes editar y borrar solicitudes</div>
-<div class="topbar"><div><h1 id="page-title">📤 Nueva solicitud</h1><div class="topbar-sub" id="page-sub">Registra la boleta de pago con su comprobante</div></div></div>
+<div class="topbar"><div><h1 id="page-title">📤 Nueva solicitud</h1><div class="topbar-sub" id="page-sub">Registra una boleta de pago o rastrea una ya enviada</div></div></div>
 
 <!-- TOAST -->
 <div class="toast-wrap" id="toast-wrap"></div>
@@ -915,6 +997,13 @@ body.admin-on .admin-only{display:inline-block}
 <!-- ═══════════════ FORM ═══════════════ -->
 <div class="main">
 <div class="view active" id="view-form">
+
+  <div class="dash-seg form-seg">
+    <button class="dash-seg-btn active" id="fseg-nueva" onclick="setFormSec('nueva')">📤 Nueva solicitud</button>
+    <button class="dash-seg-btn" id="fseg-track" onclick="setFormSec('track')">🔎 Rastrear boleta</button>
+  </div>
+
+  <div id="form-sec-nueva">
 
   <div class="form-card">
     <div class="card-heading">📋 Datos de la boleta</div>
@@ -1002,6 +1091,22 @@ body.admin-on .admin-only{display:inline-block}
       <div style="font-weight:700;margin-bottom:2px">Solicitud enviada correctamente</div>
       <div id="form-success-sub" style="font-size:.78rem;opacity:.85">El equipo gestionará la boleta y podrás ver el resultado en la pestaña Gestión.</div>
       <div id="form-marca" style="font-size:.8rem;margin-top:6px;font-weight:600"></div>
+    </div>
+  </div>
+
+  </div><!-- /form-sec-nueva -->
+
+  <div id="form-sec-track" style="display:none">
+    <div class="trk-wrap">
+      <div class="trk-form">
+        <label class="trk-field"><span class="trk-lbl">MARCA ÚNICA</span><input id="trk-marca" type="text" placeholder="CC-00212" autocomplete="off" autocapitalize="characters" onkeydown="if(event.key==='Enter')trkBuscar()"></label>
+        <label class="trk-field"><span class="trk-lbl">CÓDIGO DE LA REPRESENTANTE</span><input id="trk-codigo" type="text" placeholder="Código que ingresaste" autocomplete="off" onkeydown="if(event.key==='Enter')trkBuscar()"></label>
+        <button class="trk-btn" id="trk-btn" onclick="trkBuscar()">RASTREA <span>→</span></button>
+      </div>
+      <div class="trk-hint">La <strong>marca única</strong> aparece al enviar tu solicitud (por ejemplo CC-00212). Con ella y el código de la representante ves en qué etapa va tu boleta.</div>
+      <div id="trk-recientes"></div>
+      <div id="trk-error" class="trk-error"></div>
+      <div id="trk-result"></div>
     </div>
   </div>
 
@@ -1401,7 +1506,7 @@ function uploadImage(file,prefix){
 
 /* ─── TABS ───────────────────────────────────── */
 var PAGES={
-  form:['📤 Nueva solicitud','Registra la boleta de pago con su comprobante'],
+  form:['📤 Nueva solicitud','Registra una boleta de pago o rastrea una ya enviada'],
   panel:['✅ Gestión de boletas','Confirma en banco las solicitudes recibidas'],
   oper:['💼 Operatoria de cartera','Boletas confirmadas en banco pendientes de aplicar a cartera'],
   notif:['🗂️ Historial','Registro de movimientos y huellas del equipo'],
@@ -1409,6 +1514,7 @@ var PAGES={
 };
 function switchTab(t){
   var pg=PAGES[t];if(pg){document.getElementById('page-title').textContent=pg[0];document.getElementById('page-sub').textContent=pg[1]}
+  if(t==='form')formTitulo();
   ['form','panel','oper','notif','dash'].forEach(function(v){
     document.getElementById('view-'+v).classList.remove('active');
     document.getElementById('tab-'+v).classList.remove('active');
@@ -1593,7 +1699,8 @@ function submitForm(){
     resetForm();
     var fs=document.getElementById('form-success');
     var fm=document.getElementById('form-marca');
-    if(fm)fm.innerHTML=nuevaMarca?'Marca única de tu solicitud: <span class="marca">'+nuevaMarca+'</span> — anótala para dar seguimiento.':'';
+    if(nuevaMarca)trkGuardar(nuevaMarca,codRep,mon(banco.value,montoF)+' · '+bancoInfo(banco.value).banco);
+    if(fm)fm.innerHTML=nuevaMarca?'Marca única de tu solicitud: <span class="marca">'+nuevaMarca+'</span> — anótala para dar seguimiento.<br><button type="button" class="trk-link" onclick="trkIr(\''+nuevaMarca+'\',\''+ea(codRep).replace(/'/g,"\\'")+'\')">🔎 Rastrear esta boleta</button>':'';
     var fsub=document.getElementById('form-success-sub');
     if(fsub&&SOLO==='form')fsub.textContent='El equipo gestionará la boleta.';
     fs.classList.add('show');setTimeout(function(){fs.classList.remove('show')},15000);
@@ -1964,6 +2071,113 @@ function renderTrend(rows){
     '<path d="'+area+'" fill="url(#trendGrad)"/>'+
     '<polyline points="'+pts+'" fill="none" stroke="#00216F" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" style="filter:drop-shadow(0 0 6px rgba(0,229,255,.7))"/>'+
     dots+labels;
+}
+
+/* ─── RASTREO DE BOLETAS (etapas, como una guía de envío) ─── */
+var TRK_SVG={
+  1:'<svg viewBox="0 0 64 64" fill="none" stroke="#7DBFE6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h22l8 8v40H18z" fill="rgba(125,191,230,.16)"/><path d="M40 8v8h8"/><path d="M25 28h16M25 36h16M25 44h9"/><circle cx="47" cy="47" r="10" fill="#FF5100" stroke="#fff"/><path d="M47 52v-10M42.5 46.5L47 42l4.5 4.5" stroke="#fff"/></svg>',
+  2:'<svg viewBox="0 0 64 64" fill="none" stroke="#7DBFE6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26L32 12l24 14z" fill="rgba(125,191,230,.16)"/><path d="M15 31v17M27 31v17M37 31v17M49 31v17"/><path d="M10 53h44"/><circle cx="32" cy="22" r="2.4" fill="#FF5100" stroke="#FF5100"/></svg>',
+  3:'<svg viewBox="0 0 64 64" fill="none" stroke="#7DBFE6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 7l20 7v16c0 13-9 22-20 27C21 52 12 43 12 30V14z" fill="rgba(125,191,230,.16)"/><path d="M22.5 31l7 7 13-15" stroke="#fff" stroke-width="4"/></svg>',
+  4:'<svg viewBox="0 0 64 64" fill="none" stroke="#7DBFE6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="22" width="46" height="31" rx="5" fill="rgba(125,191,230,.16)"/><path d="M24 22v-5a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v5"/><path d="M9 37h46"/><rect x="28" y="33" width="8" height="9" rx="2" fill="#FF5100" stroke="#fff"/></svg>',
+  5:'<svg viewBox="0 0 64 64" fill="none" stroke="#7DBFE6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="27" r="18" fill="rgba(125,191,230,.16)"/><path d="M23 27l7 7 12-14" stroke="#fff" stroke-width="4"/><path d="M23.5 42L20 58l12-6 12 6-3.5-16" stroke="#FF5100"/></svg>'
+};
+var formSec='nueva';
+function formTitulo(){
+  var t=document.getElementById('page-title'),sb_=document.getElementById('page-sub');
+  if(formSec==='track'){t.textContent='🔎 Rastrear boleta';sb_.textContent='Mira en qué etapa va tu boleta de pago'}
+  else{t.textContent=PAGES.form[0];sb_.textContent=PAGES.form[1]}
+}
+function setFormSec(sec){
+  formSec=sec;formTitulo();
+  document.getElementById('form-sec-nueva').style.display=sec==='nueva'?'':'none';
+  document.getElementById('form-sec-track').style.display=sec==='track'?'':'none';
+  document.getElementById('fseg-nueva').classList.toggle('active',sec==='nueva');
+  document.getElementById('fseg-track').classList.toggle('active',sec==='track');
+  if(sec==='track')trkRecientes();
+}
+function trkLeer(){try{return JSON.parse(localStorage.getItem('trk_recientes')||'[]')}catch(e){return []}}
+function trkGuardar(marca,codigo,txt){
+  if(!marca)return;
+  try{
+    var a=trkLeer().filter(function(x){return x.m!==marca});
+    a.unshift({m:marca,c:codigo,t:txt||'',ts:Date.now()});
+    localStorage.setItem('trk_recientes',JSON.stringify(a.slice(0,8)));
+  }catch(e){}
+}
+function trkRecientes(){
+  var el=document.getElementById('trk-recientes'),a=trkLeer();
+  if(!a.length){el.innerHTML='';return}
+  el.innerHTML='<div class="trk-rec-t">Mis solicitudes en este dispositivo</div><div class="trk-rec">'+a.map(function(x,i){
+    return '<button class="trk-chip" onclick="trkIr('+i+')"><strong>'+ea(x.m)+'</strong><span>'+ea(x.t)+'</span></button>';
+  }).join('')+'</div>';
+}
+function trkIr(i,codigo){
+  var m,c;
+  if(typeof i==='number'){var x=trkLeer()[i];if(!x)return;m=x.m;c=x.c}else{m=i;c=codigo}
+  setFormSec('track');
+  document.getElementById('trk-marca').value=m;document.getElementById('trk-codigo').value=c||'';
+  trkBuscar();
+  var v=document.getElementById('form-sec-track');if(v&&v.scrollIntoView)v.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function trkBuscar(){
+  var m=document.getElementById('trk-marca').value.trim(),c=document.getElementById('trk-codigo').value.trim();
+  var err=document.getElementById('trk-error'),btn=document.getElementById('trk-btn');
+  err.textContent='';
+  if(!m||!c){err.textContent='Escribe la marca única y el código de la representante.';return}
+  btn.disabled=true;btn.firstChild.nodeValue='BUSCANDO... ';
+  sb.rpc('rastrear_boleta',{p_marca:m,p_codigo:c}).then(function(res){
+    btn.disabled=false;btn.firstChild.nodeValue='RASTREA ';
+    if(res.error){err.textContent='No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.';console.error(res.error);return}
+    var d=res.data||{};
+    if(!d.ok){
+      document.getElementById('trk-result').innerHTML='';
+      err.textContent=d.error==='DEMASIADOS_INTENTOS'?'Demasiados intentos para esta marca. Espera unos minutos e inténtalo de nuevo.':'No encontramos esa boleta. Revisa la marca única y el código de la representante.';
+      return;
+    }
+    trkGuardar(d.marca,c,d.simbolo+' '+fmt(d.monto)+' · '+d.banco);
+    trkRecientes();
+    trkRender(d);
+  });
+}
+function trkEstadoTxt(d){
+  if(d.estado==='rejected')return 'NO ENCONTRADA EN BANCO';
+  if(d.estado==='pending')return 'EN VALIDACIÓN EN BANCO';
+  if(d.operado===true)return 'OPERADA · PROCESO COMPLETO';
+  if(d.operado===false)return 'NO OPERADA · EN REVISIÓN DE CARTERA';
+  return 'CONFIRMADA · EN OPERATORIA DE CARTERA';
+}
+function trkRender(d){
+  var est=d.estado,op=d.operado,st;
+  if(est==='rejected')st=['done','done','error','todo','todo'];
+  else if(est==='pending')st=['done','current','todo','todo','todo'];
+  else if(op===true)st=['done','done','done','done','done'];
+  else if(op===false)st=['done','done','done','done','warn'];
+  else st=['done','done','done','current','todo'];
+  var titulos=['SOLICITUD RECIBIDA','VALIDACIÓN EN BANCO',est==='rejected'?'NO ENCONTRADA EN BANCO':'CONFIRMADA EN BANCO','OPERATORIA DE CARTERA',op===false?'NO OPERADA':'OPERADA'];
+  var fechas=[d.enviada,(est!=='pending'?d.confirmada:null),(est!=='pending'?d.confirmada:null),null,(op!==null?d.operado_at:null)];
+  var mark={done:'✓',current:'●',error:'✕',warn:'!',todo:''};
+  var steps=st.map(function(x,i){
+    var conectaVerde=(x==='done'&&st[i+1]&&st[i+1]!=='todo');
+    return '<div class="trk-step s-'+x+(conectaVerde?' conecta':'')+'" style="--i:'+i+'">'+
+      '<div class="trk-t">'+titulos[i]+'</div>'+
+      '<div class="trk-node"><b>'+mark[x]+'</b></div>'+
+      '<div class="trk-card">'+TRK_SVG[i+1]+'</div>'+
+      '<div class="trk-d">'+(fechas[i]?fmtTime(fechas[i]):'')+'</div></div>';
+  }).join('');
+  var filas=[['ESTADO',trkEstadoTxt(d)],['MARCA ÚNICA',d.marca],['REPRESENTANTE',d.representante||'—'],['BANCO · PAÍS',d.banco+' · '+d.pais],['MONTO',d.simbolo+' '+fmt(d.monto)],['FECHA DE TRANSFERENCIA',d.fecha]];
+  if(d.numero_boleta)filas.push(['# DE BOLETA',d.numero_boleta]);
+  filas.push(['ENVIADA',fmtTime(d.enviada)]);
+  if(est!=='pending'&&d.confirmada)filas.push([est==='rejected'?'REVISADA EN BANCO':'CONFIRMADA EN BANCO',fmtTime(d.confirmada)]);
+  if(op!==null&&d.operado_at)filas.push([op?'OPERADA':'REVISADA POR CARTERA',fmtTime(d.operado_at)]);
+  var nota=est==='rejected'?'El banco no encontró esta transferencia. Comunícate con el equipo de cobros para revisarla.'
+          :(op===false?'Cartera revisó la boleta y aún no pudo aplicarla. El equipo dará seguimiento.'
+          :(est==='pending'?'Estamos validando tu boleta con el banco.'
+          :(op===true?'¡Listo! Tu boleta ya fue aplicada.':'Tu boleta ya está confirmada y espera su aplicación en cartera.')));
+  document.getElementById('trk-result').innerHTML=
+    '<div class="trk-steps">'+steps+'</div>'+
+    '<div class="trk-nota trk-nota-'+(est==='rejected'?'error':(op===false?'warn':(op===true?'ok':'info')))+'">'+nota+'</div>'+
+    '<div class="trk-tabla e-'+(est==='rejected'?'error':(op===false?'warn':(op===true?'ok':'info')))+'">'+filas.map(function(f){return '<div class="trk-row"><div class="trk-k">'+ea(f[0])+'</div><div class="trk-v">'+ea(f[1])+'</div></div>'}).join('')+'</div>'+
+    '<div class="trk-act"><button class="btn-export alt" onclick="trkBuscar()">🔄 Actualizar</button><span>Actualizado '+new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})+'</span></div>';
 }
 
 /* ─── DASHBOARD DE OPERATORIA: filtros y gráficas con movimiento ─── */
