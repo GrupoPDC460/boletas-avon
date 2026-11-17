@@ -679,6 +679,10 @@ body{display:block;min-height:100vh}
 .oper-upload-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 button.oper-upload{font-family:var(--font)}
 @media(max-width:420px){.oper-upload-row{grid-template-columns:1fr}}
+
+/* Operatoria cerrada (solo lectura) */
+.oper-cerrada-banner{background:rgba(0,33,111,.06);border:1px solid rgba(0,33,111,.2);color:var(--pdc);padding:10px 12px;border-radius:10px;font-weight:800;font-size:.8rem;margin-bottom:12px}
+.oper-cerrada-nota{white-space:pre-wrap;margin-bottom:2px}
 </style>
 </head>
 <body>
@@ -1847,6 +1851,12 @@ function renderOper(){
     var thumbs=(b.dataUrl?'<img src="'+b.dataUrl+'" alt="Comprobante" onclick="openLbUrl(\''+b.dataUrl+'\',event)">':'')+
                (b.capturaUrl?'<img src="'+b.capturaUrl+'" alt="Captura" onclick="openLbUrl(\''+b.capturaUrl+'\',event)">':'');
     var semCls=(b.operado===null)?' oc-'+semOf(b).k:'';
+    var cerrada=(b.operado===true);
+    var cerradaHtml='<div class="oper-form oper-cerrada"><div class="oper-title">Operatoria de cartera</div>'+
+      '<div class="oper-cerrada-banner">🔒 Operatoria cerrada · esta boleta ya fue operada y no se puede volver a guardar.</div>'+
+      '<div class="d-lbl">Resumen de la gestión</div>'+
+      '<div class="d-val oper-cerrada-nota">'+(b.operNota?ea(b.operNota):'<span style="opacity:.55">Sin resumen</span>')+'</div>'+
+      huella+'</div>';
     return '<div class="boleta-card oper-card'+semCls+'" id="oc-'+b.id+'">'+
       '<div class="boleta-header oper-head" onclick="toggleOper('+b.id+')">'+
         '<span class="bank-badge '+bankClass(b.banco)+'">'+ea(bi.banco)+'</span>'+
@@ -1872,7 +1882,7 @@ function renderOper(){
         '</div>'+
         (thumbs?'<div class="oper-thumbs">'+thumbs+'</div>':'')+
         (b.evidenciaUrl?'<div class="oper-evid-badge">🧾 Evidencia de operatoria <img src="'+b.evidenciaUrl+'" alt="Evidencia" onclick="openLbUrl(\''+b.evidenciaUrl+'\',event)"></div>':'')+
-        '<div class="oper-form">'+
+        (cerrada?cerradaHtml:('<div class="oper-form">'+
           '<div class="oper-title">Operatoria de cartera</div>'+
           '<div class="oper-choice">'+
             '<label class="radio-opt"><input type="radio" name="oper-'+b.id+'" value="si"'+(b.operado===true?' checked':'')+'><div class="radio-label">✅ Sí, fue operado</div></label>'+
@@ -1890,7 +1900,7 @@ function renderOper(){
             '<input type="text" id="oper-quien-'+b.id+'" value="'+ea(who)+'" placeholder="Nombre y apellido" autocomplete="off"></div>'+
           '<button class="btn-primary" onclick="saveOper('+b.id+')">💾 Guardar operatoria</button>'+
           huella+
-        '</div>'+
+        '</div>'))+
         '<button class="oper-collapse" onclick="toggleOper('+b.id+',true)">▴ Contraer</button>'+
       '</div>'+
     '</div>';
@@ -1905,6 +1915,8 @@ function operFile(id,input){
   operSetFile(id,f,input);
 }
 function operSetFile(id,f,input){
+  var bb=boletas.find(function(x){return x.id===id});
+  if(bb&&bb.operado===true){operCerradaAviso();return}
   if(!/^image\//.test(f.type)){toast('warn','Solo imágenes','Adjunta una imagen (JPG, PNG, etc.).');if(input)input.value='';return}
   if(f.size>10*1024*1024){toast('warn','Archivo muy grande','La imagen no debe pasar de 10 MB.');if(input)input.value='';return}
   if(operFiles[id])URL.revokeObjectURL(operFiles[id].url);
@@ -1970,8 +1982,12 @@ function operFileClear(id){
   delete operFiles[id];
   var el=document.getElementById('oper-prev-'+id);if(el)el.innerHTML='';
 }
+function operCerradaAviso(){
+  toast('warn','🔒 Operatoria cerrada','Esta boleta ya fue operada y no se puede volver a guardar.');
+}
 function saveOper(id){
   var b=boletas.find(function(x){return x.id===id});if(!b)return;
+  if(b.operado===true){operCerradaAviso();refreshBoletas();return}
   var ch=document.querySelector('input[name="oper-'+id+'"]:checked');
   var nota=document.getElementById('oper-nota-'+id).value.trim();
   var quien=document.getElementById('oper-quien-'+id).value.trim();
@@ -1984,12 +2000,19 @@ function saveOper(id){
   var btn=document.querySelector('#oc-'+id+' .btn-primary');
   if(btn){btn.disabled=true;btn.textContent=pend?'Subiendo evidencia...':'Guardando...'}
   var restore=function(){if(btn){btn.disabled=false;btn.textContent='💾 Guardar operatoria'}};
-  (pend?uploadImage(pend.file,'evidencia'):Promise.resolve(null)).then(function(path){
+  sb.from('boletas').select('operado').eq('id',id).single().then(function(chk){
+    if(chk&&chk.data&&chk.data.operado===true){var e=new Error('cerrada');e.cerrada=true;throw e}
+    return pend?uploadImage(pend.file,'evidencia'):null;
+  }).then(function(path){
     var upd={operado:operado,operatoria_nota:nota||null,operado_por:quien,operado_at:new Date().toISOString()};
     if(path)upd.evidencia_path=path;
     return sb.from('boletas').update(upd).eq('id',id);
   }).then(function(res){
-    if(res.error){restore();toast('warn','Error','No se pudo guardar la operatoria.');console.error(res.error);return}
+    if(res.error){
+      restore();
+      if(String(res.error.message||'').indexOf('OPERATORIA_CERRADA')>=0){operCerradaAviso();refreshBoletas();return}
+      toast('warn','Error','No se pudo guardar la operatoria.');console.error(res.error);return
+    }
     operFileClear(id);
     try{localStorage.setItem('oper_nombre',quien)}catch(e){}
     operOpen[id]=false;
@@ -1999,6 +2022,7 @@ function saveOper(id){
     refreshBoletas();
   }).catch(function(err){
     restore();
+    if(err&&err.cerrada){operCerradaAviso();refreshBoletas();return}
     toast('warn','No se pudo guardar','Revisa tu conexión e inténtalo de nuevo.');
     console.error('saveOper error',err);
   });
