@@ -1,2 +1,2 @@
 # boletas-avon
-Sistema de confirmación de boletas bancarias · Avon CARD · Grupo PDC
+Centro de Cobros · Sistema de validación bancaria y operatoria de cobros · Avon CARD · Grupo PDC

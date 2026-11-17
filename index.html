@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Confirmación de Boletas · Avon CARD · Grupo PDC</title>
+<title>Centro de Cobros · Avon CARD · Grupo PDC</title>
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <meta name="theme-color" content="#00216F">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -683,6 +683,13 @@ button.oper-upload{font-family:var(--font)}
 /* Operatoria cerrada (solo lectura) */
 .oper-cerrada-banner{background:rgba(0,33,111,.06);border:1px solid rgba(0,33,111,.2);color:var(--pdc);padding:10px 12px;border-radius:10px;font-weight:800;font-size:.8rem;margin-bottom:12px}
 .oper-cerrada-nota{white-space:pre-wrap;margin-bottom:2px}
+
+/* Cámara en Solicitud */
+.cam-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:12px;padding:14px;border:none;border-radius:12px;background:var(--pdc);color:#fff;font-family:var(--font);font-weight:800;font-size:.95rem;cursor:pointer;transition:all .15s;box-shadow:0 4px 12px rgba(0,33,111,.25)}
+.cam-btn:hover{background:#00164d}
+.cam-hint{font-size:.72rem;color:var(--text-muted);margin-top:6px;text-align:center}
+
+@media(hover:none) and (pointer:coarse){#view-form .paste-row{display:none}}
 </style>
 </head>
 <body>
@@ -694,8 +701,8 @@ button.oper-upload{font-family:var(--font)}
   <div class="header-logo-wrap">
     <img src="grupo-pdc-blanco.png" alt="Grupo PDC" class="header-logo">
   </div>
-  <div class="header-title">🧾 Confirmación de Boletas</div>
-  <div class="header-sub">Sistema de validación bancaria · Avon CARD · Grupo PDC</div>
+  <div class="header-title">🧾 Centro de Cobros</div>
+  <div class="header-sub">Sistema de validación bancaria y operatoria de cobros · Avon CARD · Grupo PDC</div>
 </div>
 
 <!-- MENÚ -->
@@ -794,6 +801,9 @@ button.oper-upload{font-family:var(--font)}
       <div class="upload-text">Clic aquí o arrastra el comprobante</div>
       <div class="upload-hint">JPG, PNG o PDF · máx. 10 MB</div>
     </div>
+    <input type="file" accept="image/*" capture="environment" id="cam-input" onchange="handleFile(event)" style="display:none">
+    <button type="button" class="cam-btn" onclick="document.getElementById('cam-input').click()">📷 Tomar foto del comprobante</button>
+    <div class="cam-hint">En el celular se abre la cámara. La foto queda adjunta aquí automáticamente, sin guardarla en la galería.</div>
     <div class="paste-row">
       <button type="button" class="paste-btn" onclick="pasteComprobante()">📋 Pegar captura</button>
       <span class="paste-hint">o presiona <strong>Ctrl+V</strong> con la captura copiada — no hace falta guardarla</span>
@@ -1243,20 +1253,47 @@ function handleFile(e){
   var f=e.target.files[0]; if(!f)return;
   setComprobante(f,e.target);
 }
+/* Reduce fotos grandes del celular (JPG/PNG) para que suban rápido y no pasen el límite */
+function compressImage(file,maxEdge,quality){
+  return new Promise(function(res){
+    if(!/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type)){res(file);return}
+    var url=URL.createObjectURL(file),img=new Image();
+    img.onload=function(){
+      try{
+        var w=img.naturalWidth,h=img.naturalHeight,sc=Math.min(1,maxEdge/Math.max(w,h));
+        var cv=document.createElement('canvas');cv.width=Math.max(1,Math.round(w*sc));cv.height=Math.max(1,Math.round(h*sc));
+        var g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);g.drawImage(img,0,0,cv.width,cv.height);
+        cv.toBlob(function(blob){
+          URL.revokeObjectURL(url);
+          if(!blob||blob.size>=file.size){res(file);return}
+          res(new File([blob],file.name.replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'}));
+        },'image/jpeg',quality);
+      }catch(e){URL.revokeObjectURL(url);res(file)}
+    };
+    img.onerror=function(){URL.revokeObjectURL(url);res(file)};
+    img.src=url;
+  });
+}
 function setComprobante(f,input){
   if(!(/^image\//.test(f.type)||f.type==='application/pdf')){toast('warn','Formato no válido','Adjunta una imagen o un PDF.');if(input)input.value='';return}
-  if(f.size>10*1024*1024){toast('warn','Archivo muy grande','El comprobante no debe pasar de 10 MB.');if(input)input.value='';return}
-  fileData=f;
-  document.getElementById('file-chip-name').textContent=f.name;
-  document.getElementById('file-chip').style.display='flex';
-  if(f.type.startsWith('image/')){
-    var r=new FileReader();
-    r.onload=function(ev){
-      fileDataUrl=ev.target.result;
-      document.getElementById('preview-img').src=ev.target.result;
-      document.getElementById('preview-wrap').style.display='flex';
-    };r.readAsDataURL(f);
-  }else{fileDataUrl=null;document.getElementById('preview-wrap').style.display='none'}
+  var go=function(file){
+    if(file.size>10*1024*1024){toast('warn','Archivo muy grande','El comprobante no debe pasar de 10 MB.');if(input)input.value='';return}
+    fileData=file;
+    document.getElementById('file-chip-name').textContent=file.name;
+    document.getElementById('file-chip').style.display='flex';
+    if(file.type.startsWith('image/')){
+      var r=new FileReader();
+      r.onload=function(ev){
+        fileDataUrl=ev.target.result;
+        document.getElementById('preview-img').src=ev.target.result;
+        document.getElementById('preview-wrap').style.display='flex';
+      };r.readAsDataURL(file);
+    }else{fileDataUrl=null;document.getElementById('preview-wrap').style.display='none'}
+  };
+  if(/^image\//.test(f.type)&&f.size>1.2*1024*1024){
+    toast('info','⏳ Optimizando la foto...','Un momento.');
+    compressImage(f,2000,.88).then(go);
+  }else go(f);
 }
 
 function submitForm(){
@@ -1313,6 +1350,7 @@ function resetForm(){
   document.querySelectorAll('.radio-opt').forEach(function(el){el.classList.remove('selected')});
   ['fecha','monto','representante','codigo','zona','numero-boleta','correo'].forEach(function(id){document.getElementById(id).value=''});
   document.getElementById('file-input').value='';
+  var ci=document.getElementById('cam-input');if(ci)ci.value='';
   document.getElementById('preview-wrap').style.display='none';
   document.getElementById('file-chip').style.display='none';
   fileData=null;fileDataUrl=null;
@@ -2163,7 +2201,7 @@ function exportOper(mode){
   toast('info','⏳ Generando Excel...','Un momento, estamos preparando el archivo.');
   loadExcelJS().then(function(){
     var wb=new ExcelJS.Workbook();
-    wb.creator='Hub de boletas · Grupo PDC';wb.created=new Date();
+    wb.creator='Centro de Cobros · Grupo PDC';wb.created=new Date();
     xlBoletasSheet(wb,all?'Operatoria de cartera':'Operatoria (vista actual)',view);
     xlResumenSheet(wb,all?conf:conf.filter(function(b){return !operPais||bancoInfo(b.banco).pais===operPais}));
     if(all)xlBoletasSheet(wb,'Todas las boletas',boletas.slice().sort(function(a,b){return b.id-a.id}));
@@ -2191,7 +2229,7 @@ function shareUrl(){
 function shareMsg(){
   var t=document.getElementById('share-page').value;
   var nom=(PAGES[t]||PAGES.form)[0].replace(/^\S+\s/,'');
-  return 'Confirmación de Boletas · Avon CARD · Grupo PDC\n'+nom+'\n'+shareUrl();
+  return 'Centro de Cobros · Avon CARD · Grupo PDC\n'+nom+'\n'+shareUrl();
 }
 function openShare(){
   var av=document.querySelector('.view.active');
@@ -2238,7 +2276,7 @@ function downloadQR(){
 }
 function shareNative(){
   if(!navigator.share)return;
-  navigator.share({title:'Confirmación de Boletas · Avon CARD',text:shareMsg().split('\n').slice(0,2).join('\n'),url:shareUrl()}).catch(function(){});
+  navigator.share({title:'Centro de Cobros · Avon CARD',text:shareMsg().split('\n').slice(0,2).join('\n'),url:shareUrl()}).catch(function(){});
 }
 
 /* ─── LIGHTBOX ───────────────────────────────── */
