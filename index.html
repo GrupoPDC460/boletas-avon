@@ -669,6 +669,16 @@ body{display:block;min-height:100vh}
 .oper-evid-actual img{width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid var(--success-border);cursor:zoom-in;flex-shrink:0}
 .oper-evid-badge{display:flex;align-items:center;gap:10px;margin-bottom:14px;font-size:.74rem;font-weight:800;color:var(--success)}
 .oper-evid-badge img{width:78px;height:78px;object-fit:cover;border-radius:8px;border:1px solid var(--success-border);cursor:zoom-in}
+
+/* Pegar capturas */
+.paste-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.paste-btn{padding:9px 16px;border-radius:20px;border:1px solid var(--pdc);background:#fff;color:var(--pdc);font-family:var(--font);font-weight:800;font-size:.78rem;cursor:pointer;transition:all .15s}
+.paste-btn:hover{background:rgba(0,33,111,.07)}
+.paste-hint{font-size:.72rem;color:var(--text-muted)}
+.paste-hint strong{color:var(--pdc)}
+.oper-upload-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button.oper-upload{font-family:var(--font)}
+@media(max-width:420px){.oper-upload-row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -779,6 +789,10 @@ body{display:block;min-height:100vh}
       <div class="upload-icon">☁️</div>
       <div class="upload-text">Clic aquí o arrastra el comprobante</div>
       <div class="upload-hint">JPG, PNG o PDF · máx. 10 MB</div>
+    </div>
+    <div class="paste-row">
+      <button type="button" class="paste-btn" onclick="pasteComprobante()">📋 Pegar captura</button>
+      <span class="paste-hint">o presiona <strong>Ctrl+V</strong> con la captura copiada — no hace falta guardarla</span>
     </div>
     <div class="upload-preview" id="preview-wrap">
       <img id="preview-img" src="" alt="Vista previa">
@@ -1223,7 +1237,11 @@ function selectBanco(radio){
 
 function handleFile(e){
   var f=e.target.files[0]; if(!f)return;
-  if(f.size>10*1024*1024){toast('warn','Archivo muy grande','El comprobante no debe pasar de 10 MB.');e.target.value='';return}
+  setComprobante(f,e.target);
+}
+function setComprobante(f,input){
+  if(!(/^image\//.test(f.type)||f.type==='application/pdf')){toast('warn','Formato no válido','Adjunta una imagen o un PDF.');if(input)input.value='';return}
+  if(f.size>10*1024*1024){toast('warn','Archivo muy grande','El comprobante no debe pasar de 10 MB.');if(input)input.value='';return}
   fileData=f;
   document.getElementById('file-chip-name').textContent=f.name;
   document.getElementById('file-chip').style.display='flex';
@@ -1864,7 +1882,9 @@ function renderOper(){
             '<textarea id="oper-nota-'+b.id+'" rows="3" placeholder="Qué se hizo en cartera, o el motivo si no se operó">'+ea(b.operNota||'')+'</textarea></div>'+
           '<div class="field"><div class="label">Evidencia de lo operado (imagen) <span class="opt-tag">Opcional</span></div>'+
             (b.evidenciaUrl?'<div class="oper-evid-actual"><img src="'+b.evidenciaUrl+'" alt="Evidencia" onclick="openLbUrl(\''+b.evidenciaUrl+'\',event)"><span>Evidencia cargada ✓ — toca la imagen para ampliar. Si subes otra, se reemplaza.</span></div>':'')+
-            '<label class="oper-upload"><input type="file" accept="image/*" onchange="operFile('+b.id+',this)">📎 '+(b.evidenciaUrl?'Reemplazar imagen':'Adjuntar imagen de evidencia')+'</label>'+
+            '<div class="oper-upload-row"><label class="oper-upload"><input type="file" accept="image/*" onchange="operFile('+b.id+',this)">📎 '+(b.evidenciaUrl?'Reemplazar imagen':'Adjuntar imagen')+'</label>'+
+            '<button type="button" class="oper-upload oper-paste" onclick="operPaste('+b.id+')">📋 Pegar captura</button></div>'+
+            '<div class="paste-hint" style="margin-top:6px">También puedes pegar la captura con <strong>Ctrl+V</strong> sin guardarla antes.</div>'+
             '<div class="oper-prev" id="oper-prev-'+b.id+'">'+operPrevHtml(b.id)+'</div></div>'+
           '<div class="field"><div class="label">Tu nombre (quien realiza la gestión) <span class="req">*</span></div>'+
             '<input type="text" id="oper-quien-'+b.id+'" value="'+ea(who)+'" placeholder="Nombre y apellido" autocomplete="off"></div>'+
@@ -1882,12 +1902,69 @@ function operPrevHtml(id){
 }
 function operFile(id,input){
   var f=input.files[0];if(!f)return;
-  if(!/^image\//.test(f.type)){toast('warn','Solo imágenes','Adjunta una imagen (JPG, PNG, etc.).');input.value='';return}
-  if(f.size>10*1024*1024){toast('warn','Archivo muy grande','La imagen no debe pasar de 10 MB.');input.value='';return}
+  operSetFile(id,f,input);
+}
+function operSetFile(id,f,input){
+  if(!/^image\//.test(f.type)){toast('warn','Solo imágenes','Adjunta una imagen (JPG, PNG, etc.).');if(input)input.value='';return}
+  if(f.size>10*1024*1024){toast('warn','Archivo muy grande','La imagen no debe pasar de 10 MB.');if(input)input.value='';return}
   if(operFiles[id])URL.revokeObjectURL(operFiles[id].url);
   operFiles[id]={file:f,url:URL.createObjectURL(f)};
-  document.getElementById('oper-prev-'+id).innerHTML=operPrevHtml(id);
+  var pv=document.getElementById('oper-prev-'+id);if(pv)pv.innerHTML=operPrevHtml(id);
+  toast('success','📎 Imagen lista','Se subirá al presionar Guardar operatoria.');
 }
+/* ─── PEGAR CAPTURAS (Ctrl+V o botón) ─── */
+var operLast=null;
+function clipImage(e){
+  var cd=e.clipboardData;if(!cd||!cd.items)return null;
+  var img=null,hasText=false;
+  for(var i=0;i<cd.items.length;i++){
+    var it=cd.items[i];
+    if(it.kind==='file'&&/^image\//.test(it.type)&&!img)img=it.getAsFile();
+    if(it.kind==='string'&&it.type==='text/plain')hasText=true;
+  }
+  return (img&&!hasText)?img:null;
+}
+function nombreCaptura(f){
+  var ext=((f.type||'image/png').split('/')[1]||'png').replace('jpeg','jpg');
+  var d=new Date(),pad=function(n){return String(n).padStart(2,'0')};
+  return 'captura-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+pad(d.getHours())+pad(d.getMinutes())+pad(d.getSeconds())+'.'+ext;
+}
+function comoCaptura(blob){return new File([blob],nombreCaptura(blob),{type:blob.type||'image/png'})}
+function operPasteTarget(){
+  var ae=document.activeElement,card=ae&&ae.closest?ae.closest('.oper-card'):null;
+  if(!card&&operLast)card=document.getElementById('oc-'+operLast);
+  if(!card||!card.querySelector('.oper-body.open')){
+    var open=document.querySelectorAll('#oper-list .oper-body.open');
+    card=(open.length===1)?open[0].closest('.oper-card'):null;
+  }
+  return card?parseInt(card.id.replace('oc-',''),10):null;
+}
+document.addEventListener('click',function(e){
+  var c=e.target.closest&&e.target.closest('.oper-card');
+  if(c)operLast=parseInt(c.id.replace('oc-',''),10);
+});
+document.addEventListener('paste',function(e){
+  var img=clipImage(e);if(!img)return;
+  var av=document.querySelector('.view.active');if(!av)return;
+  if(av.id==='view-form'){e.preventDefault();setComprobante(comoCaptura(img));return}
+  if(av.id==='view-oper'){
+    var id=operPasteTarget();
+    if(id===null){toast('warn','¿En qué boleta?','Abre la tarjeta de la boleta y haz clic dentro antes de pegar la captura.');return}
+    e.preventDefault();operSetFile(id,comoCaptura(img));
+  }
+});
+function leerPortapapeles(cb){
+  if(!navigator.clipboard||!navigator.clipboard.read){toast('info','Usa Ctrl+V','Tu navegador no permite el botón. Copia la captura y presiona Ctrl+V.');return}
+  navigator.clipboard.read().then(function(items){
+    for(var i=0;i<items.length;i++){
+      var t=items[i].types.filter(function(x){return /^image\//.test(x)})[0];
+      if(t){items[i].getType(t).then(function(blob){cb(comoCaptura(blob))});return}
+    }
+    toast('warn','No hay captura copiada','Primero toma y copia la captura de pantalla; luego vuelve a presionar el botón.');
+  }).catch(function(){toast('info','Permiso del portapapeles','Permite el acceso al portapapeles o usa Ctrl+V.')});
+}
+function pasteComprobante(){leerPortapapeles(function(f){setComprobante(f)})}
+function operPaste(id){leerPortapapeles(function(f){operSetFile(id,f)})}
 function operFileClear(id){
   if(operFiles[id])URL.revokeObjectURL(operFiles[id].url);
   delete operFiles[id];
