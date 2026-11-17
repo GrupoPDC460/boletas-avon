@@ -651,6 +651,11 @@ body{display:block;min-height:100vh}
 .oper-head:hover{background:rgba(0,33,111,.03)}
 .oper-expand{margin-left:auto;display:flex;gap:8px}
 @media(max-width:580px){.oper-expand{margin-left:0}}
+
+.oper-collapse{display:block;width:calc(100% + 32px);margin:0 -16px;padding:10px;border:none;border-top:1px solid var(--border);background:var(--surface2);color:var(--pdc);font-family:var(--font);font-weight:800;font-size:.78rem;cursor:pointer;transition:background .15s}
+.oper-collapse:hover{background:rgba(0,33,111,.1)}
+.oper-body{padding-bottom:0}
+.oper-form{padding-bottom:14px}
 </style>
 </head>
 <body>
@@ -1648,11 +1653,12 @@ function fillOperPais(allConf){
   }).join('');
   sel.value=operPais;
 }
-function toggleOper(id){
+function toggleOper(id,fromBottom){
   operOpen[id]=!operOpen[id];
   var card=document.getElementById('oc-'+id);if(!card)return;
   card.querySelector('.oper-body').classList.toggle('open',!!operOpen[id]);
   card.querySelector('.chev').classList.toggle('open',!!operOpen[id]);
+  if(fromBottom&&!operOpen[id])card.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
 function operToggleAll(open){
   operViewRows().forEach(function(b){operOpen[b.id]=open});
@@ -1845,6 +1851,7 @@ function renderOper(){
           '<button class="btn-primary" onclick="saveOper('+b.id+')">💾 Guardar operatoria</button>'+
           huella+
         '</div>'+
+        '<button class="oper-collapse" onclick="toggleOper('+b.id+',true)">▴ Contraer</button>'+
       '</div>'+
     '</div>';
   }).join('');
