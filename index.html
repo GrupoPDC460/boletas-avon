@@ -636,6 +636,13 @@ body{display:block;min-height:100vh}
 .sem-l{font-size:.74rem}
 @media(min-width:1400px){.oper-sempanel .sem-strip{grid-template-columns:1fr}}
 @media(max-width:420px){.sem-wrap{gap:12px}.sem-light svg{width:52px}.sem-card{padding:12px 4px}.sem-n{font-size:1.4rem}.sem-l{font-size:.64rem}}
+
+.oper-export{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.btn-export{padding:9px 16px;border-radius:20px;border:1px solid var(--avon);background:var(--avon);color:#fff;font-family:var(--font);font-weight:800;font-size:.78rem;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn-export:hover{background:var(--avon-deep);border-color:var(--avon-deep)}
+.btn-export.alt{background:#fff;color:var(--pdc);border-color:var(--pdc)}
+.btn-export.alt:hover{background:rgba(0,33,111,.06)}
+@media(max-width:580px){.oper-export{margin-left:0;width:100%}.btn-export{flex:1;text-align:center}}
 </style>
 </head>
 <body>
@@ -800,7 +807,7 @@ body{display:block;min-height:100vh}
 
 <!-- ═══════════════ OPERATORIA DE CARTERA ═══════════════ -->
 <div class="view" id="view-oper">
-  <div class="oper-scopebar"><span class="oper-scope-ico">🌎</span><label for="oper-pais">Ver por país</label><select id="oper-pais" onchange="onOperPais(this.value)"></select><span class="oper-scope-hint">Filtra contadores, semáforo y lista</span></div>
+  <div class="oper-scopebar"><span class="oper-scope-ico">🌎</span><label for="oper-pais">Ver por país</label><select id="oper-pais" onchange="onOperPais(this.value)"></select><span class="oper-scope-hint">Filtra contadores, semáforo y lista</span><div class="oper-export"><button class="btn-export" onclick="exportOper('all')">⬇️ Exportar todo a Excel</button><button class="btn-export alt" onclick="exportOper('view')">Solo la vista actual</button></div></div>
   <div class="stats-grid">
     <div class="stat-card"><div class="stat-val pend" id="oc-pend">0</div><div class="stat-lbl">Por operar</div></div>
     <div class="stat-card"><div class="stat-val conf" id="oc-yes">0</div><div class="stat-lbl">Operadas</div></div>
@@ -1833,6 +1840,158 @@ function saveOper(id){
       mon(b.banco,b.monto)+' · '+(b.representante||'Sin nombre')+(b.codigo?' (Cód. '+b.codigo+')':'')+' — por '+quien);
     toast('success','💼 Operatoria guardada','Quedó registrado a nombre de '+quien+'.');
     refreshBoletas();
+  });
+}
+
+/* ─── EXPORTAR A EXCEL ───────────────────────── */
+var excelLoading=null;
+function loadExcelJS(){
+  if(window.ExcelJS)return Promise.resolve();
+  if(excelLoading)return excelLoading;
+  excelLoading=new Promise(function(res,rej){
+    var sc=document.createElement('script');sc.src='exceljs.min.js';
+    sc.onload=res;sc.onerror=function(){excelLoading=null;rej(new Error('No se pudo cargar la librería de Excel'))};
+    document.head.appendChild(sc);
+  });
+  return excelLoading;
+}
+function operViewRows(){
+  var conf=boletas.filter(function(b){return b.status==='confirmed'}).filter(function(b){
+    if(operPais&&bancoInfo(b.banco).pais!==operPais)return false;
+    if(operBanco&&b.banco!==operBanco)return false;
+    return true;
+  });
+  var rows=conf.filter(function(b){
+    if(operSem)return b.operado===null&&semOf(b).k===operSem;
+    return operFilter==='all'||(operFilter==='pending'&&b.operado===null)||(operFilter==='yes'&&b.operado===true)||(operFilter==='no'&&b.operado===false);
+  });
+  rows.sort(function(a,b){
+    var pa=a.operado===null?0:1,pb=b.operado===null?0:1;
+    if(pa!==pb)return pa-pb;
+    if(pa===0)return horasPend(b)-horasPend(a);
+    return b.id-a.id;
+  });
+  return rows;
+}
+/* ExcelJS escribe las fechas en UTC; se compensa para que Excel muestre la hora local */
+function toDate(iso){var t=Date.parse(iso||'');return isNaN(t)?null:new Date(t-new Date(t).getTimezoneOffset()*60000)}
+function dateOnly(f){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(f||'');return m?new Date(Date.UTC(+m[1],+m[2]-1,+m[3])):null}
+var XL_COLS=[
+  ['ID',7],['País',16],['Banco',22],['Moneda',9],['Monto',14],['Fecha de transferencia',14],['Representante',26],['Código',12],['Zona',8],['# de boleta',14],['Correo',28],
+  ['Enviada',17],['Estado en banco',18],['Confirmada en banco',17],['Operatoria de cartera',18],['Semáforo',12],['Horas (pendiente / hasta operar)',16],['Resumen de la gestión',44],['Operado por',20],['Fecha de operatoria',17]
+];
+function xlRow(b){
+  var bi=bancoInfo(b.banco);
+  var estBanco=b.status==='confirmed'?'Confirmada en banco':(b.status==='rejected'?'No encontrada':'En proceso');
+  var oper='',sem='',horas=null;
+  if(b.status==='confirmed'){
+    if(b.operado===true)oper='Operado';else if(b.operado===false)oper='No operado';else oper='Por operar';
+    if(b.operado===null){var m=semOf(b);sem=m.nom;horas=Math.round(horasPend(b)*10)/10}
+    else{var t0=Date.parse(b.resolveISO||b.submitISO||''),t1=Date.parse(b.operAt||'');if(!isNaN(t0)&&!isNaN(t1)&&t1>=t0)horas=Math.round((t1-t0)/36e5*10)/10}
+  }
+  return [b.id,bi.pais,bi.banco,bi.cur,parseFloat(b.monto)||0,dateOnly(b.fecha),b.representante||'',b.codigo||'',b.zona||'',b.numero||'',b.correo||'',
+    toDate(b.submitISO),estBanco,toDate(b.resolveISO),oper,sem,horas,b.operNota||'',b.operPor||'',toDate(b.operAt)];
+}
+var XL_FILL={'En tiempo':'FFD1FAE5','Atención':'FFFEF3C7','Crítica':'FFFEE2E2','Operado':'FFD1FAE5','No operado':'FFFEE2E2','Por operar':'FFFEF3C7','Confirmada en banco':'FFD1FAE5','No encontrada':'FFFEE2E2','En proceso':'FFFEF3C7'};
+var XL_FONT={'En tiempo':'FF15803D','Atención':'FFB45309','Crítica':'FFDC2626','Operado':'FF15803D','No operado':'FFDC2626','Por operar':'FFB45309','Confirmada en banco':'FF15803D','No encontrada':'FFDC2626','En proceso':'FFB45309'};
+function xlHeader(ws,cols){
+  var hr=ws.getRow(1);hr.height=30;
+  hr.eachCell(function(c){
+    c.font={bold:true,color:{argb:'FFFFFFFF'},name:'Calibri',size:11};
+    c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF00216F'}};
+    c.alignment={vertical:'middle',horizontal:'center',wrapText:true};
+    c.border={bottom:{style:'medium',color:{argb:'FFFF5100'}}};
+  });
+  ws.views=[{state:'frozen',ySplit:1}];
+  ws.autoFilter={from:{row:1,column:1},to:{row:1,column:cols}};
+}
+function xlBoletasSheet(wb,name,list){
+  var ws=wb.addWorksheet(name,{properties:{tabColor:{argb:'FF00216F'}}});
+  ws.columns=XL_COLS.map(function(c){return {header:c[0],width:c[1]}});
+  list.forEach(function(b){ws.addRow(xlRow(b))});
+  xlHeader(ws,XL_COLS.length);
+  ws.eachRow(function(row,i){
+    if(i===1)return;
+    row.alignment={vertical:'middle'};
+    row.getCell(5).numFmt='#,##0.00';
+    row.getCell(6).numFmt='dd/mm/yyyy';
+    [12,14,20].forEach(function(c){row.getCell(c).numFmt='dd/mm/yyyy hh:mm'});
+    row.getCell(17).numFmt='0.0';
+    [13,15,16].forEach(function(c){
+      var cell=row.getCell(c),v=cell.value;
+      if(v&&XL_FILL[v]){cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:XL_FILL[v]}};cell.font={bold:true,color:{argb:XL_FONT[v]}};cell.alignment={horizontal:'center',vertical:'middle'}}
+    });
+    row.getCell(18).alignment={wrapText:true,vertical:'middle'};
+    if(i%2===1)row.eachCell(function(c){if(!c.fill||!c.fill.fgColor)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF5F7FA'}}});
+  });
+  return ws;
+}
+function xlResumenSheet(wb,list){
+  var ws=wb.addWorksheet('Resumen país y banco',{properties:{tabColor:{argb:'FFFF5100'}}});
+  var H=['País','Banco','Confirmadas','Por operar','Operadas','No operadas','% operado','🔴 Críticas (+24 h)','🟡 Atención (12-24 h)','🟢 En tiempo (hasta 12 h)','Meta 24 h (% de operadas)','Tiempo promedio (h)','Moneda','Monto por operar'];
+  ws.columns=H.map(function(h,i){return {header:h,width:i<2?22:15}});
+  var blank=function(){return {conf:0,por:0,ope:0,no:0,crit:0,warn:0,ok:0,in24:0,sumH:0,nH:0,m:0}};
+  var P={};
+  list.filter(function(b){return b.status==='confirmed'}).forEach(function(b){
+    var bi=bancoInfo(b.banco);
+    var c=P[bi.pais]||(P[bi.pais]=Object.assign(blank(),{cur:bi.cur,banks:{}}));
+    var k=c.banks[b.banco]||(c.banks[b.banco]=Object.assign(blank(),{nombre:bi.banco}));
+    var m=parseFloat(b.monto)||0;
+    [c,k].forEach(function(o){
+      o.conf++;
+      if(b.operado===null){o.por++;o.m+=m;o[semOf(b).k]++}
+      else if(b.operado===true){o.ope++;
+        var t0=Date.parse(b.resolveISO||b.submitISO||''),t1=Date.parse(b.operAt||'');
+        if(!isNaN(t0)&&!isNaN(t1)&&t1>=t0){var h=(t1-t0)/36e5;o.sumH+=h;o.nH++;if(h<=24)o.in24++}
+      }else o.no++;
+    });
+  });
+  var line=function(pais,banco,o,cur,isPais){
+    return [pais,banco,o.conf,o.por,o.ope,o.no,o.conf?o.ope/o.conf:null,o.crit,o.warn,o.ok,o.ope?o.in24/o.ope:null,o.nH?Math.round(o.sumH/o.nH*10)/10:null,cur,o.por?o.m:null];
+  };
+  var order=PAISES.map(function(x){return x.n}).filter(function(n){return P[n]});
+  order.forEach(function(n){
+    var c=P[n];
+    var r=ws.addRow(line(n,'(Total país)',c,c.cur,true));r.isPais=true;
+    Object.keys(c.banks).map(function(v){return c.banks[v]}).sort(function(a,b){return b.por-a.por||a.nombre.localeCompare(b.nombre)})
+      .forEach(function(k){ws.addRow(line(n,k.nombre,k,c.cur,false))});
+  });
+  xlHeader(ws,H.length);
+  ws.eachRow(function(row,i){
+    if(i===1)return;
+    row.getCell(7).numFmt='0%';row.getCell(11).numFmt='0%';row.getCell(12).numFmt='0.0';row.getCell(14).numFmt='#,##0.00';
+    for(var c=3;c<=14;c++)if(c!==13)row.getCell(c).alignment={horizontal:'center',vertical:'middle'};
+    if(row.getCell(2).value==='(Total país)'){
+      row.eachCell(function(c){c.font={bold:true,color:{argb:'FF00216F'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE8EEF8'}}});
+    }
+  });
+  return ws;
+}
+function exportOper(mode){
+  var all=(mode==='all');
+  var conf=boletas.filter(function(b){return b.status==='confirmed'});
+  var view=all?conf:operViewRows();
+  if(!boletas.length){toast('warn','Sin datos','Todavía no hay boletas para exportar.');return}
+  if(!all&&!view.length){toast('warn','Vista vacía','La vista actual no tiene boletas. Cambia el filtro o exporta todo.');return}
+  toast('info','⏳ Generando Excel...','Un momento, estamos preparando el archivo.');
+  loadExcelJS().then(function(){
+    var wb=new ExcelJS.Workbook();
+    wb.creator='Hub de boletas · Grupo PDC';wb.created=new Date();
+    xlBoletasSheet(wb,all?'Operatoria de cartera':'Operatoria (vista actual)',view);
+    xlResumenSheet(wb,all?conf:conf.filter(function(b){return !operPais||bancoInfo(b.banco).pais===operPais}));
+    if(all)xlBoletasSheet(wb,'Todas las boletas',boletas.slice().sort(function(a,b){return b.id-a.id}));
+    return wb.xlsx.writeBuffer();
+  }).then(function(buf){
+    var d=new Date(),pad=function(n){return String(n).padStart(2,'0')};
+    var name='Operatoria_de_cartera_'+(all?'completo':'vista')+'_'+d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'.xlsx';
+    var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(a.href)},4000);
+    toast('success','✅ Excel descargado',name);
+  }).catch(function(err){
+    console.error('export error',err);
+    toast('warn','No se pudo exportar','Revisa tu conexión e inténtalo de nuevo.');
   });
 }
 
