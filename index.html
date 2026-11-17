@@ -715,6 +715,14 @@ body.solo .topbar{display:flex;padding:16px 16px 0;width:100%;max-width:1280px;m
 }
 
 @media(min-width:900px){body.solo-form .topbar,body.solo-form .main{max-width:800px}}
+
+/* Correlativo y marca única */
+.oper-num{flex:0 0 auto;min-width:50px;text-align:center;padding:5px 7px;border-radius:12px;background:var(--pdc);color:#fff;line-height:1.1;box-shadow:0 2px 6px rgba(0,33,111,.25)}
+.oper-num strong{display:block;font-size:1.08rem;font-weight:900}
+.oper-num span{display:block;font-size:.54rem;opacity:.8;text-transform:uppercase;letter-spacing:.3px;margin-top:1px}
+.oper-num.done{background:var(--success-bg);color:var(--success);border:1px solid var(--success-border);box-shadow:none}
+.marca{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:700;color:var(--pdc);background:rgba(0,33,111,.08);padding:1px 6px;border-radius:6px;font-size:.7rem;white-space:nowrap}
+.form-success .marca{background:rgba(21,128,61,.14);color:var(--success);font-size:.82rem}
 </style>
 </head>
 <body>
@@ -853,7 +861,8 @@ body.solo .topbar{display:flex;padding:16px 16px 0;width:100%;max-width:1280px;m
     <span style="font-size:1.2rem">✅</span>
     <div>
       <div style="font-weight:700;margin-bottom:2px">Solicitud enviada correctamente</div>
-      <div style="font-size:.78rem;opacity:.85">El equipo gestionará la boleta y podrás ver el resultado en la pestaña Gestión.</div>
+      <div id="form-success-sub" style="font-size:.78rem;opacity:.85">El equipo gestionará la boleta y podrás ver el resultado en la pestaña Gestión.</div>
+      <div id="form-marca" style="font-size:.8rem;margin-top:6px;font-weight:600"></div>
     </div>
   </div>
 
@@ -1007,6 +1016,8 @@ var PAISES=[
   {n:'Panamá',cur:'$',bancos:['Banco General','Banco Nacional','Caja de ahorros','Citibank','BAC']},
   {n:'República Dominicana',cur:'RD$',bancos:['Banco Popular Dominicano','Citibank','Banreservas','BHD']}
 ];
+/* Marca única: fija para siempre, derivada del número interno de la boleta */
+function marcaUnica(id){return 'CC-'+String(id).padStart(5,'0')}
 function ea(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 /* Valor guardado en la columna banco: los 2 bancos históricos de Honduras se guardan igual que antes;
    el resto se guarda como "Banco (País)" para distinguir, p. ej., Citibank de cada país. */
@@ -1371,6 +1382,7 @@ function submitForm(){
   var rep=document.getElementById('representante').value.trim();
   var montoF=parseFloat(monto).toFixed(2);
 
+  var nuevaMarca='';
   uploadImage(fileData,'bach').then(function(path){
     btn.textContent='Guardando...';
     return sb.from('boletas').insert({
@@ -1380,14 +1392,19 @@ function submitForm(){
     }).select().single();
   }).then(function(res){
     if(res.error)throw res.error;
+    nuevaMarca=(res.data&&res.data.id)?marcaUnica(res.data.id):'';
     return addNotif('new','Nueva solicitud de confirmación',
-      mon(banco.value,montoF)+' · '+bancoInfo(banco.value).banco+' ('+bancoInfo(banco.value).pais+')'+(rep?' — '+rep:'')+' · Cód. '+codRep+' · Zona '+zonaRep+(numBol?' · Boleta #'+numBol:'')+' · '+correo);
+      mon(banco.value,montoF)+' · '+bancoInfo(banco.value).banco+' ('+bancoInfo(banco.value).pais+')'+(rep?' — '+rep:'')+' · Cód. '+codRep+' · Zona '+zonaRep+(numBol?' · Boleta #'+numBol:'')+(nuevaMarca?' · '+nuevaMarca:'')+' · '+correo);
   }).then(function(){
     btn.disabled=false;btn.textContent='📨 Enviar solicitud de confirmación';
     resetForm();
     var fs=document.getElementById('form-success');
-    fs.classList.add('show');setTimeout(function(){fs.classList.remove('show')},6000);
-    toast('success','Solicitud enviada','Visible para todo el equipo en tiempo real.');
+    var fm=document.getElementById('form-marca');
+    if(fm)fm.innerHTML=nuevaMarca?'Marca única de tu solicitud: <span class="marca">'+nuevaMarca+'</span> — anótala para dar seguimiento.':'';
+    var fsub=document.getElementById('form-success-sub');
+    if(fsub&&SOLO==='form')fsub.textContent='El equipo gestionará la boleta.';
+    fs.classList.add('show');setTimeout(function(){fs.classList.remove('show')},15000);
+    toast('success','Solicitud enviada',nuevaMarca?'Marca única: '+nuevaMarca:'Visible para todo el equipo en tiempo real.');
     refreshBoletas();
   }).catch(function(err){
     btn.disabled=false;btn.textContent='📨 Enviar solicitud de confirmación';
@@ -1517,6 +1534,7 @@ function renderPanel(){
       '</div>'+
       '<div class="boleta-body'+(isExp?' open':'')+'" id="bb-'+b.id+'">'+
         '<div class="detail-grid">'+
+          '<div><div class="d-lbl">Marca única</div><div class="d-val"><span class="marca">'+marcaUnica(b.id)+'</span></div></div>'+
           '<div><div class="d-lbl">Enviada</div><div class="d-val">'+b.submitTime+'</div></div>'+
           '<div><div class="d-lbl">Monto</div><div class="d-val" style="color:var(--avon);font-weight:700">'+mon(b.banco,b.monto)+'</div></div>'+
           '<div><div class="d-lbl">Banco</div><div class="d-val">'+ea(bi.banco)+' · '+ea(bi.pais)+'</div></div>'+
@@ -1934,8 +1952,12 @@ function renderOper(){
   });
   var list=document.getElementById('oper-list');
   if(!rows.length){list.innerHTML='<div class="empty-state"><span class="empty-icon">📭</span>No hay boletas confirmadas en esta categoría'+((operPais||operBanco)?' para '+ea(operBanco?bancoInfo(operBanco).banco+' · '+operPais:operPais):'')+'</div>';return}
+  // correlativo: posición en la cola de la vista actual (solo boletas aún abiertas); se recalcula al cerrarse otras
+  var corr={},nAbiertas=0;
+  rows.forEach(function(b){if(b.operado!==true)corr[b.id]=++nAbiertas});
   list.innerHTML=rows.map(function(b){
     var bi=bancoInfo(b.banco);
+    var num=corr[b.id];
     var who=b.operPor||savedName();
     var huella=b.operAt?'<div class="oper-huella">🧾 Registrado por <strong>'+ea(b.operPor||'—')+'</strong> · '+fmtTime(b.operAt)+'</div>':'';
     var thumbs=(b.dataUrl?'<img src="'+b.dataUrl+'" alt="Comprobante" onclick="openLbUrl(\''+b.dataUrl+'\',event)">':'')+
@@ -1949,10 +1971,11 @@ function renderOper(){
       huella+'</div>';
     return '<div class="boleta-card oper-card'+semCls+'" id="oc-'+b.id+'">'+
       '<div class="boleta-header oper-head" onclick="toggleOper('+b.id+')">'+
+        '<div class="oper-num'+(num?'':' done')+'" title="'+(num?'Turno '+num+' de '+nAbiertas+' en la cola actual':'Operatoria cerrada')+'">'+(num?'<strong>#'+num+'</strong><span>de '+nAbiertas+'</span>':'<strong>✓</strong><span>cerrada</span>')+'</div>'+
         '<span class="bank-badge '+bankClass(b.banco)+'">'+ea(bi.banco)+'</span>'+
         '<div class="boleta-info">'+
           '<div class="boleta-rep">'+(b.representante?ea(b.representante):'<span style="opacity:.5;font-style:italic">Sin nombre</span>')+(b.codigo?' · Cód. '+ea(b.codigo):'')+'</div>'+
-          '<div class="boleta-meta">'+ea(bi.pais)+' · '+b.fecha+(b.zona?' · Zona '+ea(b.zona):'')+(b.numero?' · Boleta #'+ea(b.numero):'')+'</div>'+
+          '<div class="boleta-meta"><span class="marca">'+marcaUnica(b.id)+'</span> · '+ea(bi.pais)+' · '+b.fecha+(b.zona?' · Zona '+ea(b.zona):'')+(b.numero?' · Boleta #'+ea(b.numero):'')+'</div>'+
         '</div>'+
         '<div class="boleta-right"><div class="boleta-amount">'+mon(b.banco,b.monto)+'</div>'+operBadge(b)+'</div>'+
         '<div class="chev'+(operOpen[b.id]?' open':'')+'">▾</div>'+
@@ -1960,6 +1983,8 @@ function renderOper(){
       '<div class="oper-body'+(operOpen[b.id]?' open':'')+'">'+
         '<div class="oper-title">Resumen de gestión</div>'+
         '<div class="detail-grid">'+
+          '<div><div class="d-lbl">Marca única</div><div class="d-val"><span class="marca">'+marcaUnica(b.id)+'</span></div></div>'+
+          '<div><div class="d-lbl">Turno en la cola</div><div class="d-val">'+(num?'<strong>#'+num+'</strong> de '+nAbiertas:'Cerrada')+'</div></div>'+
           '<div><div class="d-lbl">Representante</div><div class="d-val">'+(b.representante?ea(b.representante):'—')+'</div></div>'+
           '<div><div class="d-lbl">Código</div><div class="d-val">'+(b.codigo?ea(b.codigo):'—')+'</div></div>'+
           '<div><div class="d-lbl"># de zona</div><div class="d-val">'+(b.zona?ea(b.zona):'—')+'</div></div>'+
@@ -2107,7 +2132,7 @@ function saveOper(id){
     try{localStorage.setItem('oper_nombre',quien)}catch(e){}
     operOpen[id]=false;
     addNotif(operado?'confirmed':'rejected','Operatoria de cartera: '+(operado?'operada':'no operada'),
-      mon(b.banco,b.monto)+' · '+(b.representante||'Sin nombre')+(b.codigo?' (Cód. '+b.codigo+')':'')+' — por '+quien+(pend?' · con evidencia':''));
+      mon(b.banco,b.monto)+' · '+(b.representante||'Sin nombre')+(b.codigo?' (Cód. '+b.codigo+')':'')+' · '+marcaUnica(b.id)+' — por '+quien+(pend?' · con evidencia':''));
     toast('success','💼 Operatoria guardada','Quedó registrado a nombre de '+quien+(pend?' con su evidencia.':'.'));
     refreshBoletas();
   }).catch(function(err){
@@ -2153,8 +2178,9 @@ function toDate(iso){var t=Date.parse(iso||'');return isNaN(t)?null:new Date(t-n
 function dateOnly(f){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(f||'');return m?new Date(Date.UTC(+m[1],+m[2]-1,+m[3])):null}
 var XL_COLS=[
   ['ID',7],['País',16],['Banco',22],['Moneda',9],['Monto',14],['Fecha de transferencia',14],['Representante',26],['Código',12],['Zona',8],['# de boleta',14],['Correo',28],
-  ['Enviada',17],['Estado en banco',18],['Confirmada en banco',17],['Operatoria de cartera',18],['Semáforo',12],['Horas (pendiente / hasta operar)',16],['Resumen de la gestión',44],['Operado por',20],['Fecha de operatoria',17],['Evidencia de operatoria',22]
+  ['Enviada',17],['Estado en banco',18],['Confirmada en banco',17],['Operatoria de cartera',18],['Semáforo',12],['Horas (pendiente / hasta operar)',16],['Resumen de la gestión',44],['Operado por',20],['Fecha de operatoria',17],['Evidencia de operatoria',22],['Correlativo (cola)',12],['Marca única',14]
 ];
+var xlCorr={};
 function xlRow(b){
   var bi=bancoInfo(b.banco);
   var estBanco=b.status==='confirmed'?'Confirmada en banco':(b.status==='rejected'?'No encontrada':'En proceso');
@@ -2165,7 +2191,7 @@ function xlRow(b){
     else{var t0=Date.parse(b.resolveISO||b.submitISO||''),t1=Date.parse(b.operAt||'');if(!isNaN(t0)&&!isNaN(t1)&&t1>=t0)horas=Math.round((t1-t0)/36e5*10)/10}
   }
   return [b.id,bi.pais,bi.banco,bi.cur,parseFloat(b.monto)||0,dateOnly(b.fecha),b.representante||'',b.codigo||'',b.zona||'',b.numero||'',b.correo||'',
-    toDate(b.submitISO),estBanco,toDate(b.resolveISO),oper,sem,horas,b.operNota||'',b.operPor||'',toDate(b.operAt),b.evidenciaUrl||''];
+    toDate(b.submitISO),estBanco,toDate(b.resolveISO),oper,sem,horas,b.operNota||'',b.operPor||'',toDate(b.operAt),b.evidenciaUrl||'',(xlCorr[b.id]||null),marcaUnica(b.id)];
 }
 var XL_FILL={'En tiempo':'FFD1FAE5','Atención':'FFFEF3C7','Crítica':'FFFEE2E2','Operado':'FFD1FAE5','No operado':'FFFEE2E2','Por operar':'FFFEF3C7','Confirmada en banco':'FFD1FAE5','No encontrada':'FFFEE2E2','En proceso':'FFFEF3C7'};
 var XL_FONT={'En tiempo':'FF15803D','Atención':'FFB45309','Crítica':'FFDC2626','Operado':'FF15803D','No operado':'FFDC2626','Por operar':'FFB45309','Confirmada en banco':'FF15803D','No encontrada':'FFDC2626','En proceso':'FFB45309'};
@@ -2246,6 +2272,14 @@ function xlResumenSheet(wb,list){
 }
 function exportOper(mode){
   var all=(mode==='all');
+  // correlativo = turno en la cola (abiertas, más antiguas primero), igual que en pantalla
+  xlCorr={};var kk=0;
+  (all?boletas.filter(function(b){return b.status==='confirmed'}).sort(function(a,b){
+      var pa=a.operado===null?0:1,pb=b.operado===null?0:1;
+      if(pa!==pb)return pa-pb;
+      if(pa===0)return horasPend(b)-horasPend(a);
+      return b.id-a.id;
+    }):operViewRows()).forEach(function(b){if(b.operado!==true)xlCorr[b.id]=++kk});
   var conf=boletas.filter(function(b){return b.status==='confirmed'});
   var view=all?conf:operViewRows();
   if(!boletas.length){toast('warn','Sin datos','Todavía no hay boletas para exportar.');return}
