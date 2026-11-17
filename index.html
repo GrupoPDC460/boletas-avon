@@ -601,6 +601,11 @@ body{display:block;min-height:100vh}
 .oper-scopebar select{width:auto;min-width:240px;padding:8px 12px;border-radius:20px;font-weight:700;font-size:.82rem;color:var(--pdc);border-color:var(--pdc);background:#fff}
 .oper-scope-hint{font-size:.72rem;color:var(--text-muted)}
 @media(max-width:580px){.oper-scopebar select{flex:1;min-width:0}}
+
+.dash-wide{grid-column:1/-1}
+.dash-oper-tbl{min-width:940px}
+.dash-note{font-size:.72rem;color:var(--text-muted);margin-top:12px;line-height:1.6}
+.dash-note strong{color:var(--pdc)}
 </style>
 </head>
 <body>
@@ -839,6 +844,13 @@ body{display:block;min-height:100vh}
     <div class="dash-panel">
       <div class="dash-panel-title">🏦 Boletas por banco</div>
       <div id="bank-bars"></div>
+    </div>
+
+    <!-- Medición de operatoria de cartera -->
+    <div class="dash-panel dash-wide">
+      <div class="dash-panel-title">💼 Medición de operatoria de cartera</div>
+      <div class="tbl-wrap"><div id="dash-oper"></div></div>
+      <div class="dash-note"><strong>En proceso:</strong> enviadas, aún sin confirmar en banco · <strong>Por operar:</strong> confirmadas en banco, sin operatoria · <strong>Operadas:</strong> procesadas por cartera · <strong>% operado:</strong> sobre las confirmadas · <strong>Meta 24 h:</strong> operadas dentro de 24 horas desde la confirmación en banco.</div>
     </div>
   </div>
 </div>
@@ -1440,6 +1452,7 @@ function renderDash(){
 
   renderTrend(rows);
   renderBankBars(rows);
+  renderDashOper(rows);
 }
 
 function renderTrend(rows){
@@ -1492,6 +1505,51 @@ function renderTrend(rows){
     dots+labels;
 }
 
+function renderDashOper(rows){
+  var el=document.getElementById('dash-oper');if(!el)return;
+  var blank=function(){return {rec:0,val:0,por:0,ope:0,no:0,rej:0,crit:0,porM:0,sumH:0,nH:0,in24:0}};
+  var P={},T=blank();
+  rows.forEach(function(b){
+    var bi=bancoInfo(b.banco);
+    var c=P[bi.pais]||(P[bi.pais]=Object.assign(blank(),{cur:bi.cur,banks:{}}));
+    var k=c.banks[b.banco]||(c.banks[b.banco]=Object.assign(blank(),{nombre:bi.banco}));
+    var m=parseFloat(b.monto)||0;
+    [c,k,T].forEach(function(o){
+      o.rec++;
+      if(b.status==='pending')o.val++;
+      else if(b.status==='rejected')o.rej++;
+      else if(b.status==='confirmed'){
+        if(b.operado===null){o.por++;o.porM+=m;if(semOf(b).k==='crit')o.crit++}
+        else if(b.operado===true){
+          o.ope++;
+          var t0=Date.parse(b.resolveISO||b.submitISO||''),t1=Date.parse(b.operAt||'');
+          if(!isNaN(t0)&&!isNaN(t1)&&t1>=t0){var h=(t1-t0)/36e5;o.sumH+=h;o.nH++;if(h<=24)o.in24++}
+        }else o.no++;
+      }
+    });
+  });
+  var order=PAISES.map(function(x){return x.n}).filter(function(n){return P[n]});
+  if(!order.length){el.innerHTML='<div class="bank-empty">Sin datos en este periodo</div>';return}
+  var num=function(v,cls){return '<td class="'+(v?cls:'n0')+'">'+(v||'·')+'</td>'};
+  var pct=function(a,b){return b?Math.round(a*100/b)+'%':'—'};
+  var cells=function(o,cur){
+    var conf=o.por+o.ope+o.no;
+    return '<td>'+o.rec+'</td>'+num(o.val,'n-warn')+'<td><strong>'+o.por+'</strong></td>'+num(o.ope,'n-ok')+num(o.no,'n-no')+num(o.rej,'n-no')+
+      '<td><strong>'+pct(o.ope,conf)+'</strong></td>'+
+      '<td>'+(o.ope?pct(o.in24,o.ope):'—')+'</td>'+
+      '<td>'+(o.nH?hace(o.sumH/o.nH):'—')+'</td>'+
+      num(o.crit,'n-crit')+
+      '<td class="money">'+(o.por&&cur?cur+' '+fmt(o.porM):'—')+'</td>';
+  };
+  var body=order.map(function(n){
+    var c=P[n];
+    var banks=Object.keys(c.banks).map(function(v){return c.banks[v]}).sort(function(a,b){return b.por-a.por||a.nombre.localeCompare(b.nombre)});
+    return '<tr class="tr-pais"><td>'+ea(n)+'</td>'+cells(c,c.cur)+'</tr>'+
+      banks.map(function(k){return '<tr class="tr-bank"><td>🏦 '+ea(k.nombre)+'</td>'+cells(k,c.cur)+'</tr>'}).join('');
+  }).join('');
+  el.innerHTML='<table class="oper-tbl dash-oper-tbl"><thead><tr><th>País / Banco</th><th>Recibidas</th><th>En proceso</th><th>Por operar</th><th>Operadas</th><th>No operadas</th><th>No encontradas</th><th>% operado</th><th>Meta 24 h</th><th>Tiempo prom.</th><th>🔴 Críticas</th><th>Por operar (monto)</th></tr></thead><tbody>'+
+    body+'<tr class="tr-total"><td>Total</td>'+cells(T,'')+'</tr></tbody></table>';
+}
 function renderBankBars(rows){
   var banks={};
   rows.forEach(function(b){banks[b.banco]=(banks[b.banco]||0)+1});
