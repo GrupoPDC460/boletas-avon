@@ -698,6 +698,23 @@ button.oper-upload{font-family:var(--font)}
 .chip-btn:hover{background:rgba(0,33,111,.08)}
 .chip-btn.danger{border-color:var(--danger);color:var(--danger)}
 .chip-btn.danger:hover{background:var(--danger-bg)}
+
+/* Compartir con acceso a una sola pantalla */
+.share-solo{display:flex;align-items:flex-start;gap:8px;text-align:left;font-size:.76rem;color:var(--text);background:rgba(0,33,111,.05);border:1px solid rgba(0,33,111,.18);border-radius:10px;padding:9px 11px;margin-bottom:10px;cursor:pointer;line-height:1.4}
+.share-solo input{margin-top:2px;accent-color:var(--avon);flex-shrink:0}
+/* Modo "solo esta pantalla": sin menú, sin compartir, sin otras secciones */
+body.solo .nav-tabs,body.solo .share-btn,body.solo .sync-bar{display:none!important}
+body.solo:not(.solo-panel) .admin-toggle{display:none!important}
+body.solo .topbar{display:flex;padding:16px 16px 0;width:100%;max-width:1280px;margin:0 auto}
+@media(min-width:900px){
+  body.solo .app{flex-direction:column}
+  body.solo .sidebar{width:100%;height:auto;position:static;align-self:stretch;overflow:visible;background:var(--pdc)}
+  body.solo .sidebar .header{padding:18px 24px 24px;border-bottom:none}
+  body.solo .header::after{display:block}
+  body.solo .topbar{padding:22px 28px 0}
+}
+
+@media(min-width:900px){body.solo-form .topbar,body.solo-form .main{max-width:800px}}
 </style>
 </head>
 <body>
@@ -1127,6 +1144,7 @@ function subscribeRealtime(){
     .subscribe();
 }
 function refreshBoletas(){
+  if(SOLO==='form')return;
   sb.from('boletas').select('*').order('id',{ascending:false}).then(function(res){
     if(res.error){console.error(res.error);return}
     var fresh=(res.data||[]).map(rowToBoleta);
@@ -2258,6 +2276,8 @@ function exportOper(mode){
 var SHARE_BASE='https://grupopdc460.github.io/boletas-avon/';
 function shareUrl(){
   var t=document.getElementById('share-page').value;
+  var solo=document.getElementById('share-solo');
+  if(solo&&solo.checked)return SHARE_BASE+'?solo='+t;
   return SHARE_BASE+(t==='form'?'':'#'+t);
 }
 function shareMsg(){
@@ -2440,10 +2460,19 @@ setInterval(function(){
   if(av&&av.id==='view-oper'&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#oper-list')))renderOper();
   updateBadges();
 },60000);
-load();
+
+/* ─── ACCESO A UNA SOLA PANTALLA (enlaces ?solo=form|panel|oper|notif|dash) ─── */
+var SOLO=(function(){var v=new URLSearchParams(location.search).get('solo');return (v&&PAGES[v])?v:null})();
+if(SOLO){
+  document.body.classList.add('solo','solo-'+SOLO);
+  var _switchTabOriginal=switchTab;
+  switchTab=function(t){if(t!==SOLO)return;_switchTabOriginal(t)};
+}
+/* En el enlace de solicitud no se descarga ningún dato: solo se envía la boleta */
+if(SOLO==='form'){setSS('ok','Listo para enviar')}else{load()}
 
 initPaises();
-(function(){var h=(location.hash||'').replace('#','');if(PAGES[h])switchTab(h)})();
+(function(){var h=(location.hash||'').replace('#','');var t=SOLO||(PAGES[h]?h:null);if(t)switchTab(t)})();
 </script>
 <!-- ═══════════════ ADMIN ═══════════════ -->
 <button class="admin-toggle" id="admin-toggle" onclick="toggleAdmin()" title="Modo administrador">🔒</button>
@@ -2475,6 +2504,7 @@ initPaises();
         <option value="dash">📊 Dashboard</option>
       </select>
     </div>
+    <label class="share-solo"><input type="checkbox" id="share-solo" checked onchange="renderShare()"><span>🔒 <strong>Solo esta pantalla</strong> — quien abra el enlace o el QR no verá el menú ni las demás secciones</span></label>
     <div class="share-qr" id="share-qr-wrap"><canvas id="share-qr" width="240" height="240"></canvas></div>
     <div class="share-hint">Escanea el código con la cámara del celular</div>
     <input type="text" id="share-url" readonly onclick="this.select()">
