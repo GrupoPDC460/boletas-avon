@@ -986,6 +986,10 @@ body.admin-on .admin-only{display:inline-block}
 
 .scope-pair{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
 .oper-scopebar .scope-pair label{margin-left:0}
+
+/* El botón de administrador reserva su lugar: la barra no cambia de tamaño al iniciar sesión */
+.oper-export .admin-only{display:inline-block;visibility:hidden}
+body.admin-on .oper-export .admin-only{visibility:visible}
 </style>
 </head>
 <body>
