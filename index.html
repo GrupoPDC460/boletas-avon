@@ -716,7 +716,7 @@ body.solo .topbar{display:flex;padding:16px 16px 0;width:100%;max-width:1280px;m
 
 @media(min-width:900px){body.solo-form .topbar,body.solo-form .main{max-width:800px}}
 
-/* Correlativo y marca única */
+/* Turno en la cola y correlativo (código fijo CC-xxxxx) */
 .oper-num{flex:0 0 auto;min-width:50px;text-align:center;padding:5px 7px;border-radius:12px;background:var(--pdc);color:#fff;line-height:1.1;box-shadow:0 2px 6px rgba(0,33,111,.25)}
 .oper-num strong{display:block;font-size:1.08rem;font-weight:900}
 .oper-num span{display:block;font-size:.54rem;opacity:.8;text-transform:uppercase;letter-spacing:.3px;margin-top:1px}
@@ -1116,10 +1116,10 @@ body.admin-on .admin-only{display:inline-block}
     <div class="trk-wrap">
       <div class="trk-form">
         <label class="trk-field"><span class="trk-lbl">CÓDIGO DE LA REPRESENTANTE</span><input id="trk-codigo" type="text" placeholder="Código que ingresaste" autocomplete="off" onkeydown="if(event.key==='Enter')trkBuscar()"></label>
-        <label class="trk-field"><span class="trk-lbl">MARCA ÚNICA <small>opcional</small></span><input id="trk-marca" type="text" placeholder="CC-00212" autocomplete="off" autocapitalize="characters" onkeydown="if(event.key==='Enter')trkBuscar()"></label>
+        <label class="trk-field"><span class="trk-lbl">CORRELATIVO <small>opcional</small></span><input id="trk-marca" type="text" placeholder="Tu correlativo" autocomplete="off" autocapitalize="characters" onkeydown="if(event.key==='Enter')trkBuscar()"></label>
         <button class="trk-btn" id="trk-btn" onclick="trkBuscar()">RASTREA <span>→</span></button>
       </div>
-      <div class="trk-hint">Escribe tu <strong>código de representante</strong> para ver todas tus boletas recientes y elegir cuál rastrear. Si tienes la <strong>marca única</strong> (por ejemplo CC-00212), agrégala para ir directo a esa boleta.</div>
+      <div class="trk-hint">Escribe tu <strong>código de representante</strong> para ver todas tus boletas recientes y elegir cuál rastrear. Si tienes tu <strong>correlativo</strong>, agrégalo para ir directo a esa boleta.</div>
       <div id="trk-recientes"></div>
       <div id="trk-error" class="trk-error"></div>
       <div id="trk-result"></div>
@@ -1325,7 +1325,7 @@ var PAISES=[
   {n:'Panamá',cur:'$',bancos:['Banco General','Banco Nacional','Caja de ahorros','Citibank','BAC']},
   {n:'República Dominicana',cur:'RD$',bancos:['Banco Popular Dominicano','Citibank','Banreservas','BHD']}
 ];
-/* Marca única: fija para siempre, derivada del número interno de la boleta */
+/* Correlativo: código fijo para siempre, derivado del número interno de la boleta */
 function marcaUnica(id){return 'CC-'+String(id).padStart(5,'0')}
 function ea(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 /* Valor guardado en la columna banco: los 2 bancos históricos de Honduras se guardan igual que antes;
@@ -1716,11 +1716,11 @@ function submitForm(){
     var fs=document.getElementById('form-success');
     var fm=document.getElementById('form-marca');
     if(nuevaMarca)trkGuardar(nuevaMarca,codRep,mon(banco.value,montoF)+' · '+bancoInfo(banco.value).banco);
-    if(fm)fm.innerHTML=nuevaMarca?'Marca única de tu solicitud: <span class="marca">'+nuevaMarca+'</span> — anótala para dar seguimiento.<br><button type="button" class="trk-link" onclick="trkIr(\''+nuevaMarca+'\',\''+ea(codRep).replace(/'/g,"\\'")+'\')">🔎 Rastrear esta boleta</button>':'';
+    if(fm)fm.innerHTML=nuevaMarca?'Tu correlativo: <span class="marca">'+nuevaMarca+'</span> — anótalo para dar seguimiento.<br><button type="button" class="trk-link" onclick="trkIr(\''+nuevaMarca+'\',\''+ea(codRep).replace(/'/g,"\\'")+'\')">🔎 Rastrear esta boleta</button>':'';
     var fsub=document.getElementById('form-success-sub');
     if(fsub&&SOLO==='form')fsub.textContent='El equipo gestionará la boleta.';
     fs.classList.add('show');setTimeout(function(){fs.classList.remove('show')},15000);
-    toast('success','Solicitud enviada',nuevaMarca?'Marca única: '+nuevaMarca:'Visible para todo el equipo en tiempo real.');
+    toast('success','Solicitud enviada',nuevaMarca?'Correlativo: '+nuevaMarca:'Visible para todo el equipo en tiempo real.');
     refreshBoletas();
   }).catch(function(err){
     btn.disabled=false;btn.textContent='📨 Enviar solicitud de confirmación';
@@ -1850,7 +1850,7 @@ function renderPanel(){
       '</div>'+
       '<div class="boleta-body'+(isExp?' open':'')+'" id="bb-'+b.id+'">'+
         '<div class="detail-grid">'+
-          '<div><div class="d-lbl">Marca única</div><div class="d-val"><span class="marca">'+marcaUnica(b.id)+'</span></div></div>'+
+          '<div><div class="d-lbl">Correlativo</div><div class="d-val"><span class="marca">'+marcaUnica(b.id)+'</span></div></div>'+
           '<div><div class="d-lbl">Enviada</div><div class="d-val">'+b.submitTime+'</div></div>'+
           '<div><div class="d-lbl">Monto</div><div class="d-val" style="color:var(--avon);font-weight:700">'+mon(b.banco,b.monto)+'</div></div>'+
           '<div><div class="d-lbl">Banco</div><div class="d-val">'+ea(bi.banco)+' · '+ea(bi.pais)+'</div></div>'+
@@ -2155,7 +2155,7 @@ function trkPorCodigo(c){
     var d=res.data||{};
     if(!d.ok){
       document.getElementById('trk-result').innerHTML='';trkLista=null;
-      err.textContent=d.error==='DEMASIADAS_CONSULTAS'?'Hay muchas consultas en poco tiempo. Espera unos minutos e inténtalo de nuevo.':'No encontramos boletas con ese código en los últimos 90 días. Revisa el código o agrega la marca única.';
+      err.textContent=d.error==='DEMASIADAS_CONSULTAS'?'Hay muchas consultas en poco tiempo. Espera unos minutos e inténtalo de nuevo.':'No encontramos boletas con ese código en los últimos 90 días. Revisa el código o agrega tu correlativo.';
       return;
     }
     trkLista={c:c,d:d};
@@ -2201,7 +2201,7 @@ function trkDetalle(m,c){
     var d=res.data||{};
     if(!d.ok){
       document.getElementById('trk-result').innerHTML='';
-      err.textContent=d.error==='DEMASIADOS_INTENTOS'?'Demasiados intentos para esta marca. Espera unos minutos e inténtalo de nuevo.':'No encontramos esa boleta. Revisa la marca única y el código de la representante.';
+      err.textContent=d.error==='DEMASIADOS_INTENTOS'?'Demasiados intentos para este correlativo. Espera unos minutos e inténtalo de nuevo.':'No encontramos esa boleta. Revisa el correlativo y el código de la representante.';
       return;
     }
     trkGuardar(d.marca,c,d.simbolo+' '+fmt(d.monto)+' · '+d.banco);
@@ -2234,7 +2234,7 @@ function trkRender(d){
       '<div class="trk-card">'+TRK_SVG[i+1]+'</div>'+
       '<div class="trk-d">'+(fechas[i]?fmtTime(fechas[i]):'')+'</div></div>';
   }).join('');
-  var filas=[['ESTADO',trkEstadoTxt(d)],['MARCA ÚNICA',d.marca],['REPRESENTANTE',d.representante||'—'],['BANCO · PAÍS',d.banco+' · '+d.pais],['MONTO',d.simbolo+' '+fmt(d.monto)],['FECHA DE TRANSFERENCIA',d.fecha]];
+  var filas=[['ESTADO',trkEstadoTxt(d)],['CORRELATIVO',d.marca],['REPRESENTANTE',d.representante||'—'],['BANCO · PAÍS',d.banco+' · '+d.pais],['MONTO',d.simbolo+' '+fmt(d.monto)],['FECHA DE TRANSFERENCIA',d.fecha]];
   if(d.numero_boleta)filas.push(['# DE BOLETA',d.numero_boleta]);
   filas.push(['ENVIADA',fmtTime(d.enviada)]);
   if(est!=='pending'&&d.confirmada)filas.push([est==='rejected'?'REVISADA EN BANCO':'CONFIRMADA EN BANCO',fmtTime(d.confirmada)]);
@@ -2625,7 +2625,7 @@ function vistaTxt(){
   t.push(({pending:'Por operar',yes:'Operadas',no:'No operadas',all:'Todas'})[operFilter]);
   return t.join(' · ');
 }
-/* Calcula el reparto: cuántos casos recibe cada persona y cuáles (según correlativo) */
+/* Calcula el reparto: cuántos casos recibe cada persona y cuáles (según el turno en la cola) */
 function repartoCalc(){
   var cand=asigCand();
   var carga=asigCarga();
@@ -2853,7 +2853,7 @@ function renderOper(){
   });
   var list=document.getElementById('oper-list');
   if(!rows.length){list.innerHTML='<div class="empty-state"><span class="empty-icon">📭</span>No hay boletas confirmadas en esta categoría'+((operPais||operBanco)?' para '+ea(operBanco?bancoInfo(operBanco).banco+' · '+operPais:operPais):'')+'</div>';return}
-  // correlativo: posición en la cola de la vista actual (solo boletas aún abiertas); se recalcula al cerrarse otras
+  // turno: posición en la cola de la vista actual (solo boletas aún abiertas); se recalcula al cerrarse otras
   var corr={},nAbiertas=0;
   rows.forEach(function(b){if(b.operado!==true)corr[b.id]=++nAbiertas});
   renderOperSession();
@@ -2891,7 +2891,7 @@ function renderOper(){
       '<div class="oper-body'+(operOpen[b.id]?' open':'')+'">'+
         '<div class="oper-title">Resumen de gestión</div>'+
         '<div class="detail-grid">'+
-          '<div><div class="d-lbl">Marca única</div><div class="d-val"><span class="marca">'+marcaUnica(b.id)+'</span></div></div>'+
+          '<div><div class="d-lbl">Correlativo</div><div class="d-val"><span class="marca">'+marcaUnica(b.id)+'</span></div></div>'+
           '<div><div class="d-lbl">Turno en la cola</div><div class="d-val">'+(num?'<strong>#'+num+'</strong> de '+nAbiertas:'Cerrada')+'</div></div>'+
           '<div><div class="d-lbl">Asignada a</div><div class="d-val">'+(b.asigA?ea(b.asigNombre||b.asigA)+'<div class="asig-sub">'+(b.asigPor?'por '+ea(b.asigPor)+' · ':'')+(b.asigAt?fmtTime(b.asigAt):'')+'</div>':'<span style="opacity:.6">Sin asignar</span>')+'</div></div>'+
           '<div><div class="d-lbl">Representante</div><div class="d-val">'+(b.representante?ea(b.representante):'—')+'</div></div>'+
@@ -3160,7 +3160,7 @@ function toDate(iso){var t=Date.parse(iso||'');return isNaN(t)?null:new Date(t-n
 function dateOnly(f){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(f||'');return m?new Date(Date.UTC(+m[1],+m[2]-1,+m[3])):null}
 var XL_COLS=[
   ['ID',7],['País',16],['Banco',22],['Moneda',9],['Monto',14],['Fecha de transferencia',14],['Representante',26],['Código',12],['Zona',8],['# de boleta',14],['Correo',28],
-  ['Enviada',17],['Estado en banco',18],['Confirmada en banco',17],['Operatoria de cartera',18],['Semáforo',12],['Horas (pendiente / hasta operar)',16],['Resumen de la gestión',44],['Operado por (correo)',28],['Fecha de operatoria',17],['Evidencia de operatoria',22],['Correlativo (cola)',12],['Marca única',14],['Operado por (nombre)',30],['Asignada a (nombre)',30],['Asignada a (correo)',30],['Asignada por',30],['Fecha de asignación',17]
+  ['Enviada',17],['Estado en banco',18],['Confirmada en banco',17],['Operatoria de cartera',18],['Semáforo',12],['Horas (pendiente / hasta operar)',16],['Resumen de la gestión',44],['Operado por (correo)',28],['Fecha de operatoria',17],['Evidencia de operatoria',22],['Turno en la cola',12],['Correlativo',14],['Operado por (nombre)',30],['Asignada a (nombre)',30],['Asignada a (correo)',30],['Asignada por',30],['Fecha de asignación',17]
 ];
 var xlCorr={};
 function xlRow(b){
@@ -3254,7 +3254,7 @@ function xlResumenSheet(wb,list){
 }
 function exportOper(mode){
   var all=(mode==='all');
-  // correlativo = turno en la cola (abiertas, más antiguas primero), igual que en pantalla
+  // turno en la cola (abiertas, más antiguas primero), igual que en pantalla
   xlCorr={};var kk=0;
   (all?boletas.filter(function(b){return b.status==='confirmed'}).sort(function(a,b){
       var pa=a.operado===null?0:1,pb=b.operado===null?0:1;
@@ -3491,7 +3491,7 @@ if(esAdmin())setAdminMode(true);
     <div class="field"><div class="label">Equipo <span class="asig-mini-wrap"><button type="button" class="asig-mini" onclick="asigTodos(true)">Todos</button><button type="button" class="asig-mini" onclick="asigTodos(false)">Ninguno</button></span></div><div id="asig-equipo" class="asig-equipo"></div></div>
     <div class="field"><div class="label">Forma de reparto</div>
       <div class="asig-metodos">
-        <label class="radio-opt"><input type="radio" name="asig-metodo" value="bloques" checked onchange="repartoRender()"><div><div class="radio-label">Por bloques de correlativo</div><div class="radio-sub">Del 1 al 28 → persona 1, del 29 al 56 → persona 2…</div></div></label>
+        <label class="radio-opt"><input type="radio" name="asig-metodo" value="bloques" checked onchange="repartoRender()"><div><div class="radio-label">Por bloques de turno</div><div class="radio-sub">Del 1 al 28 → persona 1, del 29 al 56 → persona 2…</div></div></label>
         <label class="radio-opt"><input type="radio" name="asig-metodo" value="alterno" onchange="repartoRender()"><div><div class="radio-label">Alternados</div><div class="radio-sub">1 → persona 1, 2 → persona 2… todos reciben casos de todas las antigüedades</div></div></label>
       </div>
     </div>
