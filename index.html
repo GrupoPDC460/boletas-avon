@@ -960,6 +960,32 @@ body.admin-on .admin-only{display:inline-block}
 .p-val{background:#4AA3D8}.p-oper{background:var(--avon)}.p-ok{background:#15803D}.p-warn{background:#D97706}.p-error{background:#DC2626}
 .trk-lista-h{font-size:.72rem;color:var(--text-muted);margin:10px 2px 0;text-align:center}
 @media(max-width:700px){.trk-item{grid-template-columns:1fr auto;grid-template-areas:"m r" "b r"}.ti-m{grid-area:m}.ti-b{grid-area:b}.ti-r{grid-area:r}}
+
+/* ═══ Cruce de pago ═══ */
+.cx-intro{max-width:760px;margin-bottom:14px;padding:12px 16px;border-radius:12px;background:rgba(0,33,111,.06);border:1px solid rgba(0,33,111,.18);font-size:.84rem;color:var(--pdc);line-height:1.45}
+.cx-tipos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cx-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:760px;margin-bottom:14px}
+.cx-grid .form-card{max-width:none;margin-bottom:0}
+.cx-inc{border-top:5px solid #F59E0B}
+.cx-ok{border-top:5px solid #15803D}
+.cx-sub{font-size:.74rem;color:var(--text-muted);margin:-6px 0 14px}
+@media(max-width:700px){.cx-tipos,.cx-grid{grid-template-columns:1fr}}
+.cx-badge{display:inline-block;padding:1px 9px;border-radius:20px;background:var(--avon);color:var(--pdc);font-weight:900;font-size:.66rem;letter-spacing:.2px;vertical-align:middle}
+.cx-codes{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:800;font-size:.86rem;color:var(--pdc)}
+.dg-wide{grid-column:1/-1}
+.cx-flow{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:stretch}
+.cx-box{padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:var(--bg)}
+.cx-box strong{font-size:1rem;color:var(--pdc);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.cx-bad{border-left:5px solid #F59E0B;background:#FFFBEB}
+.cx-good{border-left:5px solid #15803D;background:#ECFDF3}
+.cx-arrow{display:flex;align-items:center;font-size:1.6rem;font-weight:900;color:var(--avon)}
+@media(max-width:560px){.cx-flow{grid-template-columns:1fr}.cx-arrow{justify-content:center;transform:rotate(90deg)}}
+.oper-scopebar label[for="oper-tipo"]{margin-left:6px}
+.trk-steps.tres{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:700px){.trk-steps,.trk-steps.tres{grid-template-columns:1fr}}
+
+.scope-pair{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.oper-scopebar .scope-pair label{margin-left:0}
 </style>
 </head>
 <body>
@@ -1016,6 +1042,7 @@ body.admin-on .admin-only{display:inline-block}
 
   <div class="dash-seg form-seg">
     <button class="dash-seg-btn active" id="fseg-nueva" onclick="setFormSec('nueva')">📤 Nueva solicitud</button>
+    <button class="dash-seg-btn" id="fseg-cruce" onclick="setFormSec('cruce')">🔀 Cruce de pago</button>
     <button class="dash-seg-btn" id="fseg-track" onclick="setFormSec('track')">🔎 Rastrear boleta</button>
   </div>
 
@@ -1112,6 +1139,132 @@ body.admin-on .admin-only{display:inline-block}
 
   </div><!-- /form-sec-nueva -->
 
+  <div id="form-sec-cruce" style="display:none">
+
+    <div class="cx-intro">Si una boleta se aplicó a un <strong>código que no era</strong>, o debe <strong>pasar de un código a otro</strong>, regístrala aquí. Llega directo a Operatoria de cartera con todos los datos para corregirla.</div>
+
+    <div class="form-card">
+      <div class="card-heading">🔀 Tipo de corrección</div>
+      <div class="cx-tipos">
+        <label class="radio-opt"><input type="radio" name="ctipo" value="mala_aplicacion" onchange="cSelect(this)"><div><div class="radio-label">Mala aplicación</div><div class="radio-sub">La boleta se aplicó a un código que no era</div></div></label>
+        <label class="radio-opt"><input type="radio" name="ctipo" value="cruce" onchange="cSelect(this)"><div><div class="radio-label">Cruce entre códigos</div><div class="radio-sub">La boleta debe pasar de un código a otro</div></div></label>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="card-heading">🧾 Boleta de pago</div>
+      <div class="field">
+        <div class="label">País <span class="req">*</span></div>
+        <select id="cpais" onchange="onCPais()"></select>
+      </div>
+      <div class="field">
+        <div class="label">Banco de la boleta <span class="req">*</span></div>
+        <div class="radio-grid" id="cbanco-grid"></div>
+      </div>
+      <div class="field">
+        <div class="label"># de boleta de pago <span class="req">*</span></div>
+        <input type="text" id="cnumero" placeholder="Número que aparece en la boleta" autocomplete="off">
+      </div>
+      <div class="field">
+        <div class="label">Fecha de la boleta <span class="req">*</span></div>
+        <input type="date" id="cfecha">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <div class="label">Monto de la boleta <span class="cur-tag" id="cmonto-cur">(L)</span> <span class="req">*</span></div>
+        <input type="number" id="cmonto" placeholder="0.00" step="0.01" min="0.01">
+      </div>
+    </div>
+
+    <div class="cx-grid">
+      <div class="form-card cx-inc">
+        <div class="card-heading">⚠️ Código incorrecto</div>
+        <div class="cx-sub">Donde quedó aplicada la boleta por error</div>
+        <div class="field">
+          <div class="label">Código aplicado por error <span class="req">*</span></div>
+          <input type="text" id="ccod-inc" placeholder="Ej: 1234567" autocomplete="off">
+        </div>
+        <div class="field">
+          <div class="label">Nombre de esa representante <span class="opt-tag">Opcional</span></div>
+          <input type="text" id="crep-inc" placeholder="Nombre" autocomplete="off">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <div class="label"># de zona <span class="opt-tag">Opcional</span></div>
+          <input type="text" id="czona-inc" placeholder="Ej: 12" autocomplete="off" inputmode="numeric">
+        </div>
+      </div>
+      <div class="form-card cx-ok">
+        <div class="card-heading">✅ Código correcto</div>
+        <div class="cx-sub">Donde debe aplicarse la boleta</div>
+        <div class="field">
+          <div class="label">Código correcto <span class="req">*</span></div>
+          <input type="text" id="ccod-ok" placeholder="Ej: 7654321" autocomplete="off">
+        </div>
+        <div class="field">
+          <div class="label">Nombre de la representante <span class="req">*</span></div>
+          <input type="text" id="crep-ok" placeholder="Ej: Olga Marina Canales" autocomplete="off">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <div class="label"># de zona <span class="req">*</span></div>
+          <input type="text" id="czona-ok" placeholder="Ej: 12" autocomplete="off" inputmode="numeric">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="card-heading">📝 Motivo y contacto</div>
+      <div class="field">
+        <div class="label">Motivo del cruce <span class="req">*</span></div>
+        <textarea id="cmotivo" rows="3" placeholder="Cuéntanos qué pasó y qué debe corregirse (por ejemplo: la boleta es de la representante del código correcto, pero se aplicó al incorrecto)"></textarea>
+      </div>
+      <div class="field">
+        <div class="label">Nombre de quien solicita <span class="req">*</span></div>
+        <input type="text" id="csolicitante" placeholder="Tu nombre" autocomplete="name">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <div class="label">Correo para respuesta <span class="req">*</span></div>
+        <input type="email" id="ccorreo" placeholder="usuario@grupopdc.com" autocomplete="email">
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="card-heading">📎 Boleta de pago (comprobante)</div>
+      <div class="upload-zone">
+        <input type="file" accept="image/*,.pdf" id="cfile-input" onchange="cHandleFile(event)">
+        <div class="upload-icon">☁️</div>
+        <div class="upload-text" id="cupload-text">Clic aquí o arrastra la boleta de pago</div>
+        <div class="upload-hint">JPG, PNG o PDF · máx. 10 MB</div>
+      </div>
+      <input type="file" accept="image/*" capture="environment" id="ccam-input" onchange="cHandleFile(event)" style="display:none">
+      <button type="button" class="cam-btn" onclick="document.getElementById('ccam-input').click()">📷 Tomar foto de la boleta</button>
+      <div class="paste-row">
+        <button type="button" class="paste-btn" onclick="cPasteBtn()">📋 Pegar captura</button>
+        <span class="paste-hint">o presiona <strong>Ctrl+V</strong> con la captura copiada — no hace falta guardarla</span>
+      </div>
+      <div class="upload-preview" id="cpreview-wrap">
+        <img id="cpreview-img" src="" alt="Vista previa">
+      </div>
+      <div class="file-chip" id="cfile-chip">
+        <span>📎</span><span id="cfile-chip-name"></span>
+        <span class="chip-actions">
+          <button type="button" class="chip-btn" onclick="cReplace()">🔄 Reemplazar</button>
+          <button type="button" class="chip-btn danger" onclick="cClear()">🗑 Quitar</button>
+        </span>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="cbtn-submit" onclick="submitCruce()">🔀 Enviar solicitud de cruce</button>
+
+    <div class="form-success" id="cform-success">
+      <span style="font-size:1.2rem">✅</span>
+      <div>
+        <div style="font-weight:700;margin-bottom:2px">Solicitud de cruce enviada</div>
+        <div style="font-size:.78rem;opacity:.85">Llegó a Operatoria de cartera con todos los datos para corregirla.</div>
+        <div id="cform-marca" style="font-size:.8rem;margin-top:6px;font-weight:600"></div>
+      </div>
+    </div>
+
+  </div><!-- /form-sec-cruce -->
+
   <div id="form-sec-track" style="display:none">
     <div class="trk-wrap">
       <div class="trk-form">
@@ -1160,7 +1313,7 @@ body.admin-on .admin-only{display:inline-block}
 <!-- ═══════════════ OPERATORIA DE CARTERA ═══════════════ -->
 <div class="view" id="view-oper">
   <div class="oper-session" id="oper-session"></div>
-  <div class="oper-scopebar"><span class="oper-scope-ico">🌎</span><label for="oper-pais">Ver por país</label><select id="oper-pais" onchange="onOperPais(this.value)"></select><label for="oper-asig">Asignación</label><select id="oper-asig" onchange="onOperAsig(this.value)"></select><span class="oper-scope-hint">Filtra contadores, semáforo y lista</span><div class="oper-export"><button class="btn-export" onclick="exportOper('all')">⬇️ Exportar todo a Excel</button><button class="btn-export alt" onclick="exportOper('view')">Solo la vista actual</button><button class="btn-export alt admin-only" onclick="asigOpen()">👥 Repartir casos</button></div></div>
+  <div class="oper-scopebar"><span class="oper-scope-ico">🌎</span><span class="scope-pair"><label for="oper-pais">Ver por país</label><select id="oper-pais" onchange="onOperPais(this.value)"></select></span><span class="scope-pair"><label for="oper-asig">Asignación</label><select id="oper-asig" onchange="onOperAsig(this.value)"></select></span><span class="scope-pair"><label for="oper-tipo">Tipo</label><select id="oper-tipo" onchange="onOperTipo(this.value)"></select></span><span class="oper-scope-hint">Filtra contadores, semáforo y lista</span><div class="oper-export"><button class="btn-export" onclick="exportOper('all')">⬇️ Exportar todo a Excel</button><button class="btn-export alt" onclick="exportOper('view')">Solo la vista actual</button><button class="btn-export alt admin-only" onclick="asigOpen()">👥 Repartir casos</button></div></div>
   <div class="stats-grid">
     <div class="stat-card"><div class="stat-val pend" id="oc-pend">0</div><div class="stat-lbl">Por operar</div></div>
     <div class="stat-card"><div class="stat-val conf" id="oc-yes">0</div><div class="stat-lbl">Operadas</div></div>
@@ -1257,6 +1410,7 @@ body.admin-on .admin-only{display:inline-block}
         <div class="dop-f"><label for="dop-pais">País</label><select id="dop-pais" onchange="dopSet('pais',this.value)"></select></div>
         <div class="dop-f"><label for="dop-banco">Banco</label><select id="dop-banco" onchange="dopSet('banco',this.value)"></select></div>
         <div class="dop-f"><label for="dop-agente">Agente</label><select id="dop-agente" onchange="dopSet('agente',this.value)"></select></div>
+        <div class="dop-f"><label for="dop-tipo">Tipo</label><select id="dop-tipo" onchange="dopSet('tipo',this.value)"></select></div>
         <button class="df-clear" onclick="dopClear()">Limpiar filtros</button>
         <span class="df-count" id="dop-count"></span>
       </div>
@@ -1327,6 +1481,7 @@ var PAISES=[
 ];
 /* Correlativo: código fijo para siempre, derivado del número interno de la boleta */
 function marcaUnica(id){return 'CC-'+String(id).padStart(5,'0')}
+function esCruce(b){return b&&b.tipo==='cruce'}
 function ea(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 /* Valor guardado en la columna banco: los 2 bancos históricos de Honduras se guardan igual que antes;
    el resto se guarda como "Banco (País)" para distinguir, p. ej., Citibank de cada país. */
@@ -1392,6 +1547,13 @@ function rowToBoleta(r){
     operNota:r.operatoria_nota,
     operPor:r.operado_por,
     operNombre:r.operado_nombre,
+    tipo:r.tipo||'boleta',
+    cruceSub:r.cruce_subtipo,
+    codInc:r.codigo_incorrecto,
+    repInc:r.representante_incorrecto,
+    zonaInc:r.zona_incorrecta,
+    motivo:r.motivo,
+    solicitante:r.solicitante,
     asigA:r.asignado_a,
     asigNombre:r.asignado_nombre,
     asigPor:r.asignado_por,
@@ -1602,7 +1764,8 @@ function renderNotifs(){
 
 /* ─── FORM ───────────────────────────────────── */
 function selectBanco(radio){
-  document.querySelectorAll('.radio-opt').forEach(function(el){el.classList.remove('selected')});
+  var g=radio.closest('.radio-grid')||document;
+  g.querySelectorAll('.radio-opt').forEach(function(el){el.classList.remove('selected')});
   radio.closest('.radio-opt').classList.add('selected');
 }
 
@@ -1731,7 +1894,7 @@ function submitForm(){
 
 function resetForm(){
   var ch=document.querySelector('input[name="banco"]:checked');if(ch)ch.checked=false;
-  document.querySelectorAll('.radio-opt').forEach(function(el){el.classList.remove('selected')});
+  document.querySelectorAll('#form-sec-nueva .radio-opt').forEach(function(el){el.classList.remove('selected')});
   ['fecha','monto','representante','codigo','zona','numero-boleta','correo'].forEach(function(id){document.getElementById(id).value=''});
   document.getElementById('file-input').value='';
   var ci=document.getElementById('cam-input');if(ci)ci.value='';
@@ -1758,7 +1921,7 @@ function inRange(b,from,to){
 function updateStats(){
   // Recuento dinámico: respeta el rango de fechas (por fecha de transferencia)
   var dr=getDateRange();
-  var base=boletas.filter(function(b){return inRange(b,dr.from,dr.to)});
+  var base=boletas.filter(function(b){return !esCruce(b)&&inRange(b,dr.from,dr.to)});
   var p=base.filter(function(b){return b.status==='pending'}).length;
   var c=base.filter(function(b){return b.status==='confirmed'}).length;
   var r=base.filter(function(b){return b.status==='rejected'}).length;
@@ -1787,6 +1950,7 @@ function renderPanel(){
   var dr=getDateRange();
   var from=dr.from,to=dr.to;
   var rows=boletas.filter(function(b){
+    if(esCruce(b))return false;
     if(filter!=='all'&&b.status!==filter)return false;
     return inRange(b,from,to);
   });
@@ -2011,7 +2175,8 @@ function money(map){
 
 function renderDash(){
   var dr=dashRange();
-  var rows=boletas.filter(function(b){return inRange(b,dr.from,dr.to)});
+  var todas=boletas.filter(function(b){return inRange(b,dr.from,dr.to)});
+  var rows=todas.filter(function(b){return !esCruce(b)});
 
   // contador de rango
   var rc=document.getElementById('dash-range-count');
@@ -2036,7 +2201,7 @@ function renderDash(){
 
   renderTrend(rows);
   renderBankBars(rows);
-  if(dashSec==='oper')renderDashOperView(rows);
+  if(dashSec==='oper')renderDashOperView(todas);
 }
 
 function renderTrend(rows){
@@ -2101,16 +2266,132 @@ var formSec='nueva';
 function formTitulo(){
   var t=document.getElementById('page-title'),sb_=document.getElementById('page-sub');
   if(formSec==='track'){t.textContent='🔎 Rastrear boleta';sb_.textContent='Mira en qué etapa va tu boleta de pago'}
+  else if(formSec==='cruce'){t.textContent='🔀 Cruce de pago';sb_.textContent='Corrige una boleta aplicada a un código que no era'}
   else{t.textContent=PAGES.form[0];sb_.textContent=PAGES.form[1]}
 }
 function setFormSec(sec){
   formSec=sec;formTitulo();
-  document.getElementById('form-sec-nueva').style.display=sec==='nueva'?'':'none';
-  document.getElementById('form-sec-track').style.display=sec==='track'?'':'none';
-  document.getElementById('fseg-nueva').classList.toggle('active',sec==='nueva');
-  document.getElementById('fseg-track').classList.toggle('active',sec==='track');
+  ['nueva','cruce','track'].forEach(function(k){
+    document.getElementById('form-sec-'+k).style.display=sec===k?'':'none';
+    document.getElementById('fseg-'+k).classList.toggle('active',sec===k);
+  });
   if(sec==='track')trkRecientes();
 }
+
+/* ─── CRUCE DE PAGO (mala aplicación / cruce entre códigos) ─── */
+var cFile=null;
+function cSelect(radio){
+  var g=radio.closest('.radio-grid')||radio.closest('.cx-tipos');
+  if(g)g.querySelectorAll('.radio-opt').forEach(function(el){el.classList.remove('selected')});
+  radio.closest('.radio-opt').classList.add('selected');
+}
+function onCPais(){
+  var name=document.getElementById('cpais').value;
+  var p=PAISES.filter(function(x){return x.n===name})[0]||PAISES[2];
+  document.getElementById('cbanco-grid').innerHTML=p.bancos.map(function(b){
+    return '<label class="radio-opt"><input type="radio" name="cbanco" value="'+ea(bancoValue(p.n,b))+'" onchange="cSelect(this)">'+
+      '<div><div class="radio-label">🏦 '+ea(b)+'</div><div class="radio-sub">'+ea(p.n)+' · '+ea(p.cur)+'</div></div></label>';
+  }).join('');
+  document.getElementById('cmonto-cur').textContent='('+p.cur+')';
+}
+function initCruce(){
+  var sel=document.getElementById('cpais');
+  sel.innerHTML=PAISES.map(function(p){return '<option value="'+ea(p.n)+'">'+ea(p.n)+'</option>'}).join('');
+  sel.value='Honduras';onCPais();
+}
+function cHandleFile(e){var f=e.target.files[0];if(f)setCComprobante(f,e.target)}
+function setCComprobante(f,input){
+  if(!(/^image\//.test(f.type)||f.type==='application/pdf')){toast('warn','Formato no válido','Adjunta una imagen o un PDF.');if(input)input.value='';return}
+  var go=function(file){
+    if(file.size>10*1024*1024){toast('warn','Archivo muy grande','La boleta no debe pasar de 10 MB.');if(input)input.value='';return}
+    var eraReemplazo=!!cFile;
+    cFile=file;
+    document.getElementById('cupload-text').textContent='Clic aquí o arrastra otro archivo para reemplazar la boleta';
+    if(eraReemplazo)toast('success','🔄 Boleta reemplazada','Ahora se enviará: '+file.name);
+    document.getElementById('cfile-chip-name').textContent=file.name;
+    document.getElementById('cfile-chip').style.display='flex';
+    if(file.type.startsWith('image/')){
+      var r=new FileReader();
+      r.onload=function(ev){document.getElementById('cpreview-img').src=ev.target.result;document.getElementById('cpreview-wrap').style.display='flex'};
+      r.readAsDataURL(file);
+    }else document.getElementById('cpreview-wrap').style.display='none';
+  };
+  if(/^image\//.test(f.type)&&f.size>1.2*1024*1024){toast('info','⏳ Optimizando la foto...','Un momento.');compressImage(f,2000,.88).then(go)}
+  else go(f);
+}
+function cReplace(){var fi=document.getElementById('cfile-input');fi.value='';fi.click()}
+function cClear(){
+  cFile=null;
+  ['cfile-input','ccam-input'].forEach(function(i){var e=document.getElementById(i);if(e)e.value=''});
+  document.getElementById('cpreview-wrap').style.display='none';
+  document.getElementById('cpreview-img').src='';
+  document.getElementById('cfile-chip').style.display='none';
+  document.getElementById('cupload-text').textContent='Clic aquí o arrastra la boleta de pago';
+}
+function cPasteBtn(){leerPortapapeles(function(f){setCComprobante(f)})}
+function cReset(){
+  var t=document.querySelector('input[name="ctipo"]:checked');if(t)t.checked=false;
+  var bk=document.querySelector('input[name="cbanco"]:checked');if(bk)bk.checked=false;
+  document.querySelectorAll('#form-sec-cruce .radio-opt').forEach(function(el){el.classList.remove('selected')});
+  ['cnumero','cfecha','cmonto','ccod-inc','crep-inc','czona-inc','ccod-ok','crep-ok','czona-ok','cmotivo','csolicitante','ccorreo'].forEach(function(id){document.getElementById(id).value=''});
+  cClear();
+}
+function submitCruce(){
+  var v=function(id){return document.getElementById(id).value.trim()};
+  var tipo=document.querySelector('input[name="ctipo"]:checked');
+  var banco=document.querySelector('input[name="cbanco"]:checked');
+  var num=v('cnumero'),fecha=document.getElementById('cfecha').value,monto=document.getElementById('cmonto').value;
+  var ci=v('ccod-inc'),ri=v('crep-inc'),zi=v('czona-inc'),cc=v('ccod-ok'),rc=v('crep-ok'),zc=v('czona-ok');
+  var motivo=v('cmotivo'),sol=v('csolicitante'),correo=v('ccorreo');
+  var falta=function(t,m){toast('warn',t,m);return};
+  if(!tipo)return falta('Tipo requerido','Elige si es una mala aplicación o un cruce entre códigos.');
+  if(!banco)return falta('Banco requerido','Selecciona el país y el banco de la boleta.');
+  if(!num)return falta('# de boleta requerido','Ingresa el número de la boleta de pago.');
+  if(!fecha)return falta('Fecha requerida','Ingresa la fecha de la boleta.');
+  if(!monto||parseFloat(monto)<=0)return falta('Monto inválido','Ingresa un monto mayor a cero.');
+  if(!ci)return falta('Código incorrecto requerido','Ingresa el código al que se aplicó la boleta por error.');
+  if(!cc)return falta('Código correcto requerido','Ingresa el código donde debe aplicarse.');
+  if(ci.toLowerCase()===cc.toLowerCase())return falta('Códigos iguales','El código incorrecto y el correcto no pueden ser el mismo.');
+  if(!rc)return falta('Nombre requerido','Ingresa el nombre de la representante del código correcto.');
+  if(!zc)return falta('Zona requerida','Ingresa el # de zona del código correcto.');
+  if(motivo.length<5)return falta('Motivo requerido','Cuéntanos brevemente qué pasó y qué debe corregirse.');
+  if(sol.length<3)return falta('Nombre de quien solicita','Escribe tu nombre para poder dar seguimiento.');
+  if(!correo||!correo.includes('@'))return falta('Correo inválido','Ingresa un correo electrónico válido.');
+  if(!cFile)return falta('Boleta faltante','Debes adjuntar la boleta de pago.');
+
+  var btn=document.getElementById('cbtn-submit');
+  btn.disabled=true;btn.textContent='Subiendo la boleta...';
+  var montoF=parseFloat(monto).toFixed(2),marca='';
+  uploadImage(cFile,'cruce').then(function(path){
+    btn.textContent='Enviando...';
+    return sb.rpc('crear_cruce',{p_subtipo:tipo.value,p_banco:banco.value,p_fecha:fecha,p_monto:montoF,p_numero_boleta:num,p_image_path:path,p_file_name:cFile.name,
+      p_codigo_incorrecto:ci,p_rep_incorrecto:ri||null,p_zona_incorrecta:zi||null,p_codigo_correcto:cc,p_rep_correcto:rc,p_zona_correcta:zc,
+      p_motivo:motivo,p_solicitante:sol,p_correo:correo});
+  }).then(function(res){
+    btn.disabled=false;btn.textContent='🔀 Enviar solicitud de cruce';
+    if(res.error)throw res.error;
+    var d=res.data||{};
+    if(!d.ok){
+      var campos={tipo:'el tipo',banco:'el banco',fecha:'la fecha',monto:'el monto',numero_boleta:'el # de boleta',comprobante:'la boleta adjunta',codigo_incorrecto:'el código incorrecto',codigo_correcto:'el código correcto',representante_correcto:'el nombre de la representante',zona_correcta:'la zona',motivo:'el motivo',solicitante:'tu nombre',correo:'el correo'};
+      if(d.error==='CODIGOS_IGUALES')toast('warn','Códigos iguales','El código incorrecto y el correcto no pueden ser el mismo.');
+      else if(d.error==='DEMASIADAS_SOLICITUDES')toast('warn','Muchas solicitudes','Espera un momento e inténtalo de nuevo.');
+      else toast('warn','Revisa los datos','Revisa '+(campos[d.campo]||'los campos marcados')+'.');
+      return;
+    }
+    marca=d.marca;
+    trkGuardar(marca,cc,'Cruce · '+mon(banco.value,montoF));
+    cReset();
+    var fs=document.getElementById('cform-success');
+    document.getElementById('cform-marca').innerHTML='Tu correlativo: <span class="marca">'+ea(marca)+'</span> — anótalo para dar seguimiento.<br><button type="button" class="trk-link" onclick="trkIr(\''+ea(marca)+'\',\''+ea(cc).replace(/'/g,"\\'")+'\')">🔎 Rastrear este cruce</button>';
+    fs.classList.add('show');setTimeout(function(){fs.classList.remove('show')},15000);
+    toast('success','Solicitud de cruce enviada','Correlativo: '+marca);
+  }).catch(function(err){
+    btn.disabled=false;btn.textContent='🔀 Enviar solicitud de cruce';
+    toast('warn','Error','No se pudo enviar la solicitud. Revisa tu conexión e inténtalo de nuevo.');
+    console.error('cruce error',err);
+  });
+}
+
 function trkLeer(){try{return JSON.parse(localStorage.getItem('trk_recientes')||'[]')}catch(e){return []}}
 function trkGuardar(marca,codigo,txt){
   if(!marca)return;
@@ -2164,6 +2445,11 @@ function trkPorCodigo(c){
   });
 }
 function trkEtapaCorta(b){
+  if(b.tipo==='cruce'){
+    if(b.operado===true)return {t:'Cruce aplicado',k:'ok'};
+    if(b.operado===false)return {t:'No aplicado',k:'warn'};
+    return {t:'En operatoria de cartera',k:'oper'};
+  }
   if(b.estado==='rejected')return {t:'No encontrada en banco',k:'error'};
   if(b.estado==='pending')return {t:'En validación en banco',k:'val'};
   if(b.operado===true)return {t:'Operada',k:'ok'};
@@ -2172,15 +2458,16 @@ function trkEtapaCorta(b){
 }
 function trkRenderLista(d,c){
   var items=d.boletas.map(function(b){
-    var e=trkEtapaCorta(b);
+    var e=trkEtapaCorta(b),cx=b.tipo==='cruce';
     return '<button class="trk-item" onclick="trkVer(\''+ea(b.marca)+'\')">'+
-      '<div class="ti-m"><strong>'+ea(b.marca)+'</strong><span>Transferencia '+ea(b.fecha)+'</span></div>'+
-      '<div class="ti-b">'+ea(b.banco)+' · '+ea(b.pais)+'<span>Enviada '+fmtTime(b.enviada)+'</span></div>'+
+      '<div class="ti-m"><strong>'+ea(b.marca)+'</strong><span>'+(cx?'Boleta del ':'Transferencia ')+ea(b.fecha)+'</span></div>'+
+      '<div class="ti-b">'+(cx?'<span class="cx-badge">🔀 Cruce</span> '+ea(b.codigo_incorrecto||'')+' → '+ea(b.codigo_correcto||'')+'<span>'+ea(b.banco)+' · '+ea(b.pais)+' · Enviada '+fmtTime(b.enviada)+'</span>'
+                                :ea(b.banco)+' · '+ea(b.pais)+'<span>Enviada '+fmtTime(b.enviada)+'</span>')+'</div>'+
       '<div class="ti-r"><b>'+ea(b.simbolo)+' '+fmt(b.monto)+'</b><span class="ti-pill p-'+e.k+'">'+e.t+'</span></div></button>';
   }).join('');
   document.getElementById('trk-result').innerHTML=
-    '<div class="trk-lista-t">Boletas recientes del código <strong>'+ea(c)+'</strong> <small>'+(d.total>d.boletas.length?'· las '+d.boletas.length+' más recientes de '+d.total:'· '+d.total+' en total')+' · últimos 90 días</small></div>'+
-    '<div class="trk-lista">'+items+'</div><div class="trk-lista-h">Toca una boleta para ver en qué etapa va.</div>';
+    '<div class="trk-lista-t">Solicitudes recientes del código <strong>'+ea(c)+'</strong> <small>'+(d.total>d.boletas.length?'· las '+d.boletas.length+' más recientes de '+d.total:'· '+d.total+' en total')+' · últimos 90 días</small></div>'+
+    '<div class="trk-lista">'+items+'</div><div class="trk-lista-h">Toca una para ver en qué etapa va.</div>';
 }
 function trkVer(marca){
   var c=trkLista?trkLista.c:document.getElementById('trk-codigo').value.trim();
@@ -2210,6 +2497,11 @@ function trkDetalle(m,c){
   });
 }
 function trkEstadoTxt(d){
+  if(d.tipo==='cruce'){
+    if(d.operado===true)return 'CRUCE APLICADO · PROCESO COMPLETO';
+    if(d.operado===false)return 'NO APLICADO · EN REVISIÓN DE CARTERA';
+    return 'EN OPERATORIA DE CARTERA';
+  }
   if(d.estado==='rejected')return 'NO ENCONTRADA EN BANCO';
   if(d.estado==='pending')return 'EN VALIDACIÓN EN BANCO';
   if(d.operado===true)return 'OPERADA · PROCESO COMPLETO';
@@ -2217,41 +2509,60 @@ function trkEstadoTxt(d){
   return 'CONFIRMADA · EN OPERATORIA DE CARTERA';
 }
 function trkRender(d){
-  var est=d.estado,op=d.operado,st;
-  if(est==='rejected')st=['done','done','error','todo','todo'];
-  else if(est==='pending')st=['done','current','todo','todo','todo'];
-  else if(op===true)st=['done','done','done','done','done'];
-  else if(op===false)st=['done','done','done','done','warn'];
-  else st=['done','done','done','current','todo'];
-  var titulos=['SOLICITUD RECIBIDA','VALIDACIÓN EN BANCO',est==='rejected'?'NO ENCONTRADA EN BANCO':'CONFIRMADA EN BANCO','OPERATORIA DE CARTERA',op===false?'NO OPERADA':'OPERADA'];
-  var fechas=[d.enviada,(est!=='pending'?d.confirmada:null),(est!=='pending'?d.confirmada:null),null,(op!==null?d.operado_at:null)];
+  var est=d.estado,op=d.operado,st,titulos,fechas,iconos,filas,nota,tono,cx=(d.tipo==='cruce');
+  if(cx){
+    st=op===true?['done','done','done']:(op===false?['done','done','warn']:['done','current','todo']);
+    titulos=['SOLICITUD DE CRUCE RECIBIDA','EN REVISIÓN DE CARTERA',op===false?'NO APLICADO':'CRUCE APLICADO'];
+    fechas=[d.enviada,null,(op!==null?d.operado_at:null)];
+    iconos=[1,4,5];
+    filas=[['ESTADO',trkEstadoTxt(d)],['CORRELATIVO',d.marca],['TIPO',d.subtipo==='mala_aplicacion'?'Mala aplicación':'Cruce entre códigos'],
+           ['CÓDIGO INCORRECTO',d.codigo_incorrecto||'—'],['CÓDIGO CORRECTO',d.codigo_correcto||'—']];
+    if(d.representante)filas.push(['REPRESENTANTE (CÓD. CORRECTO)',d.representante]);
+    filas.push(['BANCO · PAÍS',d.banco+' · '+d.pais],['MONTO',d.simbolo+' '+fmt(d.monto)],['FECHA DE LA BOLETA',d.fecha]);
+    if(d.numero_boleta)filas.push(['# DE BOLETA',d.numero_boleta]);
+    filas.push(['ENVIADA',fmtTime(d.enviada)]);
+    if(op!==null&&d.operado_at)filas.push([op?'CRUCE APLICADO':'REVISADO POR CARTERA',fmtTime(d.operado_at)]);
+    nota=op===false?'Cartera revisó el cruce y aún no pudo aplicarlo. El equipo dará seguimiento.'
+        :(op===true?'¡Listo! Cartera aplicó el cruce de pago.':'Tu solicitud de cruce llegó a Operatoria de cartera y está en cola para aplicarse.');
+    tono=op===false?'warn':(op===true?'ok':'info');
+  }else{
+    if(est==='rejected')st=['done','done','error','todo','todo'];
+    else if(est==='pending')st=['done','current','todo','todo','todo'];
+    else if(op===true)st=['done','done','done','done','done'];
+    else if(op===false)st=['done','done','done','done','warn'];
+    else st=['done','done','done','current','todo'];
+    titulos=['SOLICITUD RECIBIDA','VALIDACIÓN EN BANCO',est==='rejected'?'NO ENCONTRADA EN BANCO':'CONFIRMADA EN BANCO','OPERATORIA DE CARTERA',op===false?'NO OPERADA':'OPERADA'];
+    fechas=[d.enviada,(est!=='pending'?d.confirmada:null),(est!=='pending'?d.confirmada:null),null,(op!==null?d.operado_at:null)];
+    iconos=[1,2,3,4,5];
+    filas=[['ESTADO',trkEstadoTxt(d)],['CORRELATIVO',d.marca],['REPRESENTANTE',d.representante||'—'],['BANCO · PAÍS',d.banco+' · '+d.pais],['MONTO',d.simbolo+' '+fmt(d.monto)],['FECHA DE TRANSFERENCIA',d.fecha]];
+    if(d.numero_boleta)filas.push(['# DE BOLETA',d.numero_boleta]);
+    filas.push(['ENVIADA',fmtTime(d.enviada)]);
+    if(est!=='pending'&&d.confirmada)filas.push([est==='rejected'?'REVISADA EN BANCO':'CONFIRMADA EN BANCO',fmtTime(d.confirmada)]);
+    if(op!==null&&d.operado_at)filas.push([op?'OPERADA':'REVISADA POR CARTERA',fmtTime(d.operado_at)]);
+    nota=est==='rejected'?'El banco no encontró esta transferencia. Comunícate con el equipo de cobros para revisarla.'
+        :(op===false?'Cartera revisó la boleta y aún no pudo aplicarla. El equipo dará seguimiento.'
+        :(est==='pending'?'Estamos validando tu boleta con el banco.'
+        :(op===true?'¡Listo! Tu boleta ya fue aplicada.':'Tu boleta ya está confirmada y espera su aplicación en cartera.')));
+    tono=est==='rejected'?'error':(op===false?'warn':(op===true?'ok':'info'));
+  }
   var mark={done:'✓',current:'●',error:'✕',warn:'!',todo:''};
   var steps=st.map(function(x,i){
     var conectaVerde=(x==='done'&&st[i+1]&&st[i+1]!=='todo');
     return '<div class="trk-step s-'+x+(conectaVerde?' conecta':'')+'" style="--i:'+i+'">'+
       '<div class="trk-t">'+titulos[i]+'</div>'+
       '<div class="trk-node"><b>'+mark[x]+'</b></div>'+
-      '<div class="trk-card">'+TRK_SVG[i+1]+'</div>'+
+      '<div class="trk-card">'+TRK_SVG[iconos[i]]+'</div>'+
       '<div class="trk-d">'+(fechas[i]?fmtTime(fechas[i]):'')+'</div></div>';
   }).join('');
-  var filas=[['ESTADO',trkEstadoTxt(d)],['CORRELATIVO',d.marca],['REPRESENTANTE',d.representante||'—'],['BANCO · PAÍS',d.banco+' · '+d.pais],['MONTO',d.simbolo+' '+fmt(d.monto)],['FECHA DE TRANSFERENCIA',d.fecha]];
-  if(d.numero_boleta)filas.push(['# DE BOLETA',d.numero_boleta]);
-  filas.push(['ENVIADA',fmtTime(d.enviada)]);
-  if(est!=='pending'&&d.confirmada)filas.push([est==='rejected'?'REVISADA EN BANCO':'CONFIRMADA EN BANCO',fmtTime(d.confirmada)]);
-  if(op!==null&&d.operado_at)filas.push([op?'OPERADA':'REVISADA POR CARTERA',fmtTime(d.operado_at)]);
-  var nota=est==='rejected'?'El banco no encontró esta transferencia. Comunícate con el equipo de cobros para revisarla.'
-          :(op===false?'Cartera revisó la boleta y aún no pudo aplicarla. El equipo dará seguimiento.'
-          :(est==='pending'?'Estamos validando tu boleta con el banco.'
-          :(op===true?'¡Listo! Tu boleta ya fue aplicada.':'Tu boleta ya está confirmada y espera su aplicación en cartera.')));
   document.getElementById('trk-result').innerHTML=
-    '<div class="trk-steps">'+steps+'</div>'+
-    '<div class="trk-nota trk-nota-'+(est==='rejected'?'error':(op===false?'warn':(op===true?'ok':'info')))+'">'+nota+'</div>'+
-    '<div class="trk-tabla e-'+(est==='rejected'?'error':(op===false?'warn':(op===true?'ok':'info')))+'">'+filas.map(function(f){return '<div class="trk-row"><div class="trk-k">'+ea(f[0])+'</div><div class="trk-v">'+ea(f[1])+'</div></div>'}).join('')+'</div>'+
-    '<div class="trk-act">'+(trkLista?'<button class="btn-export alt" onclick="trkVolver()">← Todas mis boletas</button>':'')+'<button class="btn-export alt" onclick="trkBuscar()">🔄 Actualizar</button><span>Actualizado '+new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})+'</span></div>';
+    '<div class="trk-steps'+(cx?' tres':'')+'">'+steps+'</div>'+
+    '<div class="trk-nota trk-nota-'+tono+'">'+nota+'</div>'+
+    '<div class="trk-tabla e-'+tono+'">'+filas.map(function(f){return '<div class="trk-row"><div class="trk-k">'+ea(f[0])+'</div><div class="trk-v">'+ea(f[1])+'</div></div>'}).join('')+'</div>'+
+    '<div class="trk-act">'+(trkLista?'<button class="btn-export alt" onclick="trkVolver()">← Todas mis solicitudes</button>':'')+'<button class="btn-export alt" onclick="trkBuscar()">🔄 Actualizar</button><span>Actualizado '+new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})+'</span></div>';
 }
 
 /* ─── DASHBOARD DE OPERATORIA: filtros y gráficas con movimiento ─── */
-var dop={pais:'',banco:'',agente:'',group:'pais'},dashSec='boletas';
+var dop={pais:'',banco:'',agente:'',tipo:'',group:'pais'},dashSec='boletas';
 var REDUCE=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
 function afterPaint(fn){if(REDUCE){fn();return}requestAnimationFrame(function(){requestAnimationFrame(fn)})}
 function countUp(el,to,dec,ms){
@@ -2275,7 +2586,7 @@ function setDashSec(sec){
   renderDash();
 }
 function dopSet(k,v){dop[k]=v;if(k==='pais')dop.banco='';renderDash()}
-function dopClear(){dop.pais='';dop.banco='';dop.agente='';renderDash()}
+function dopClear(){dop.pais='';dop.banco='';dop.agente='';dop.tipo='';renderDash()}
 function dopGroup(g){dop.group=g;renderDash()}
 function dopDrill(el){
   var k=el.getAttribute('data-k'),v=el.getAttribute('data-v');
@@ -2289,6 +2600,7 @@ function dopFilterRows(rows){
     var bi=bancoInfo(b.banco);
     if(dop.pais&&bi.pais!==dop.pais)return false;
     if(dop.banco&&b.banco!==dop.banco)return false;
+    if(dop.tipo&&(b.tipo||'boleta')!==dop.tipo)return false;
     if(dop.agente&&!(b.operado!==null&&b.operPor===dop.agente))return false;
     return true;
   });
@@ -2306,6 +2618,8 @@ function dopFillFilters(){
   var keys=Object.keys(ag).sort(function(a,b){return ag[a].localeCompare(ag[b])});
   sa.innerHTML='<option value="">👤 Todos los agentes</option>'+keys.map(function(k){return '<option value="'+ea(k)+'">'+ea(ag[k])+'</option>'}).join('');
   sa.value=dop.agente;
+  var st=document.getElementById('dop-tipo');
+  if(st){st.innerHTML='<option value="">🗂️ Todos los tipos</option><option value="boleta">🧾 Boletas</option><option value="cruce">🔀 Cruces de pago</option>';st.value=dop.tipo}
 }
 function dopKpi(cls,label,to,dec,unit,sub){
   return '<div class="kpi-card '+cls+'"><div class="kpi-lbl">'+label+'</div><div class="kpi-val">'+
@@ -2525,7 +2839,7 @@ function renderBankBars(rows){
 }
 
 /* ─── OPERATORIA DE CARTERA ──────────────────── */
-var operFilter='pending',operPais='',operBanco='',operSem='',operAsig='',operOpen={},operFiles={};
+var operFilter='pending',operPais='',operBanco='',operSem='',operAsig='',operTipo='',operOpen={},operFiles={};
 function setOperFilter(f,btn){
   operFilter=f;
   document.querySelectorAll('#view-oper .filter-btn').forEach(function(x){x.classList.remove('active')});
@@ -2545,6 +2859,14 @@ function onOperAsig(v){
   operAsig=v;
   if(v==='mine'||v.indexOf('p:')===0){operPais='';operBanco=''}   /* un caso asignado puede ser de cualquier país */
   renderOper();
+}
+function onOperTipo(v){operTipo=v;renderOper()}
+function fillOperTipo(allConf){
+  var sel=document.getElementById('oper-tipo');if(!sel)return;
+  var ab=allConf.filter(function(b){return b.operado!==true});
+  var nb=ab.filter(function(b){return !esCruce(b)}).length,nc=ab.length-nb;
+  sel.innerHTML='<option value="">🗂️ Todos</option><option value="boleta">🧾 Boletas · '+nb+'</option><option value="cruce">🔀 Cruces de pago · '+nc+'</option>';
+  sel.value=operTipo;
 }
 function misCasosN(){
   if(!opSes)return 0;
@@ -2621,6 +2943,7 @@ function vistaTxt(){
   if(operPais)t.push('País: '+operPais);
   if(operBanco)t.push('Banco: '+bancoInfo(operBanco).banco);
   if(operSem)t.push('Semáforo: '+(SEM.filter(function(m){return m.k===operSem})[0]||{}).nom);
+  if(operTipo)t.push('Tipo: '+(operTipo==='cruce'?'cruces de pago':'boletas'));
   if(operAsig)t.push('Asignación: '+({mine:'mis casos',free:'sin asignar',any:'asignadas'}[operAsig]||'una persona'));
   t.push(({pending:'Por operar',yes:'Operadas',no:'No operadas',all:'Todas'})[operFilter]);
   return t.join(' · ');
@@ -2826,10 +3149,12 @@ function renderOper(){
   renderOperResumen(allConf.filter(function(b){return !operPais||bancoInfo(b.banco).pais===operPais}));
   fillOperPais(allConf);
   fillOperAsig(allConf);
+  fillOperTipo(allConf);
   var conf=allConf.filter(function(b){
     if(operPais&&bancoInfo(b.banco).pais!==operPais)return false;
     if(operBanco&&b.banco!==operBanco)return false;
     if(!asigPasa(b))return false;
+    if(operTipo&&(b.tipo||'boleta')!==operTipo)return false;
     return true;
   });
   var nP=conf.filter(function(b){return b.operado===null}).length;
@@ -2871,6 +3196,31 @@ function renderOper(){
       '<div class="d-lbl">Resumen de la gestión</div>'+
       '<div class="d-val oper-cerrada-nota">'+(b.operNota?ea(b.operNota):'<span style="opacity:.55">Sin resumen</span>')+'</div>'+
       huella+(esAdmin()?'<button class="btn-edit oper-reabrir" onclick="adminReabrir('+b.id+')">🔓 Reabrir operatoria (administrador)</button>':'')+'</div>';
+    var cellsHtml=esCruce(b)?(
+          '<div><div class="d-lbl">Tipo de corrección</div><div class="d-val">'+(b.cruceSub==='mala_aplicacion'?'Mala aplicación':'Cruce entre códigos')+'</div></div>'+
+          '<div class="dg-wide cx-flow">'+
+            '<div class="cx-box cx-bad"><div class="d-lbl">⚠️ Código incorrecto</div><div class="d-val"><strong>'+ea(b.codInc||'—')+'</strong>'+(b.repInc?'<div class="asig-sub">'+ea(b.repInc)+'</div>':'')+(b.zonaInc?'<div class="asig-sub">Zona '+ea(b.zonaInc)+'</div>':'')+'</div></div>'+
+            '<div class="cx-arrow">→</div>'+
+            '<div class="cx-box cx-good"><div class="d-lbl">✅ Código correcto</div><div class="d-val"><strong>'+ea(b.codigo||'—')+'</strong><div class="asig-sub">'+(b.representante?ea(b.representante):'—')+'</div><div class="asig-sub">Zona '+(b.zona?ea(b.zona):'—')+'</div></div></div>'+
+          '</div>'+
+          '<div><div class="d-lbl"># de boleta de pago</div><div class="d-val">'+(b.numero?ea(b.numero):'—')+'</div></div>'+
+          '<div><div class="d-lbl">Banco · País</div><div class="d-val">'+ea(bi.banco)+' · '+ea(bi.pais)+'</div></div>'+
+          '<div><div class="d-lbl">Monto a cruzar</div><div class="d-val" style="color:var(--avon);font-weight:700">'+mon(b.banco,b.monto)+'</div></div>'+
+          '<div><div class="d-lbl">Fecha de la boleta</div><div class="d-val">'+b.fecha+'</div></div>'+
+          '<div><div class="d-lbl">Enviada</div><div class="d-val">'+b.submitTime+'</div></div>'+
+          '<div><div class="d-lbl">Solicitante</div><div class="d-val">'+ea(b.solicitante||'—')+'<div class="asig-sub">'+ea(b.correo||'')+'</div></div></div>'+
+          '<div class="dg-wide"><div class="d-lbl">Motivo</div><div class="d-val oper-cerrada-nota">'+ea(b.motivo||'—')+'</div></div>'
+        ):(
+          '<div><div class="d-lbl">Representante</div><div class="d-val">'+(b.representante?ea(b.representante):'—')+'</div></div>'+
+          '<div><div class="d-lbl">Código</div><div class="d-val">'+(b.codigo?ea(b.codigo):'—')+'</div></div>'+
+          '<div><div class="d-lbl"># de zona</div><div class="d-val">'+(b.zona?ea(b.zona):'—')+'</div></div>'+
+          '<div><div class="d-lbl"># de boleta</div><div class="d-val">'+(b.numero?ea(b.numero):'—')+'</div></div>'+
+          '<div><div class="d-lbl">Banco · País</div><div class="d-val">'+ea(bi.banco)+' · '+ea(bi.pais)+'</div></div>'+
+          '<div><div class="d-lbl">Monto</div><div class="d-val" style="color:var(--avon);font-weight:700">'+mon(b.banco,b.monto)+'</div></div>'+
+          '<div><div class="d-lbl">Fecha de transferencia</div><div class="d-val">'+b.fecha+'</div></div>'+
+          '<div><div class="d-lbl">Enviada</div><div class="d-val">'+b.submitTime+'</div></div>'+
+          '<div><div class="d-lbl">Confirmada en banco</div><div class="d-val">'+(b.resolveTime||'—')+'</div></div>'
+        );
     var puede=puedeOperar(b);
     var previo=(b.operado===false)?'<div class="d-lbl">Último registro: no operado</div><div class="d-val oper-cerrada-nota">'+(b.operNota?ea(b.operNota):'—')+'</div>'+huella:'';
     var sinAccesoHtml='<div class="oper-form oper-sinacceso"><div class="oper-title">Operatoria de cartera</div>'+
@@ -2882,7 +3232,7 @@ function renderOper(){
         '<div class="oper-num'+(num?'':' done')+'" title="'+(num?'Turno '+num+' de '+nAbiertas+' en la cola actual':'Operatoria cerrada')+'">'+(num?'<strong>#'+num+'</strong><span>de '+nAbiertas+'</span>':'<strong>✓</strong><span>cerrada</span>')+'</div>'+
         '<span class="bank-badge '+bankClass(b.banco)+'">'+ea(bi.banco)+'</span>'+
         '<div class="boleta-info">'+
-          '<div class="boleta-rep">'+(b.representante?ea(b.representante):'<span style="opacity:.5;font-style:italic">Sin nombre</span>')+(b.codigo?' · Cód. '+ea(b.codigo):'')+'</div>'+
+          '<div class="boleta-rep">'+(esCruce(b)?'<span class="cx-badge">🔀 Cruce</span> <span class="cx-codes">'+ea(b.codInc||'—')+' → '+ea(b.codigo||'—')+'</span>':(b.representante?ea(b.representante):'<span style="opacity:.5;font-style:italic">Sin nombre</span>')+(b.codigo?' · Cód. '+ea(b.codigo):''))+'</div>'+
           '<div class="boleta-meta"><span class="marca">'+marcaUnica(b.id)+'</span> · '+ea(bi.pais)+' · '+b.fecha+(b.zona?' · Zona '+ea(b.zona):'')+(b.numero?' · Boleta #'+ea(b.numero):'')+(b.asigA?' · <span class="asig-chip'+(opSes&&mailIgual(b.asigA,opSes.email)?' mine':'')+'">👤 '+ea(b.asigNombre||b.asigA)+'</span>':'')+'</div>'+
         '</div>'+
         '<div class="boleta-right"><div class="boleta-amount">'+mon(b.banco,b.monto)+'</div>'+operBadge(b)+'</div>'+
@@ -2894,15 +3244,7 @@ function renderOper(){
           '<div><div class="d-lbl">Correlativo</div><div class="d-val"><span class="marca">'+marcaUnica(b.id)+'</span></div></div>'+
           '<div><div class="d-lbl">Turno en la cola</div><div class="d-val">'+(num?'<strong>#'+num+'</strong> de '+nAbiertas:'Cerrada')+'</div></div>'+
           '<div><div class="d-lbl">Asignada a</div><div class="d-val">'+(b.asigA?ea(b.asigNombre||b.asigA)+'<div class="asig-sub">'+(b.asigPor?'por '+ea(b.asigPor)+' · ':'')+(b.asigAt?fmtTime(b.asigAt):'')+'</div>':'<span style="opacity:.6">Sin asignar</span>')+'</div></div>'+
-          '<div><div class="d-lbl">Representante</div><div class="d-val">'+(b.representante?ea(b.representante):'—')+'</div></div>'+
-          '<div><div class="d-lbl">Código</div><div class="d-val">'+(b.codigo?ea(b.codigo):'—')+'</div></div>'+
-          '<div><div class="d-lbl"># de zona</div><div class="d-val">'+(b.zona?ea(b.zona):'—')+'</div></div>'+
-          '<div><div class="d-lbl"># de boleta</div><div class="d-val">'+(b.numero?ea(b.numero):'—')+'</div></div>'+
-          '<div><div class="d-lbl">Banco · País</div><div class="d-val">'+ea(bi.banco)+' · '+ea(bi.pais)+'</div></div>'+
-          '<div><div class="d-lbl">Monto</div><div class="d-val" style="color:var(--avon);font-weight:700">'+mon(b.banco,b.monto)+'</div></div>'+
-          '<div><div class="d-lbl">Fecha de transferencia</div><div class="d-val">'+b.fecha+'</div></div>'+
-          '<div><div class="d-lbl">Enviada</div><div class="d-val">'+b.submitTime+'</div></div>'+
-          '<div><div class="d-lbl">Confirmada en banco</div><div class="d-val">'+(b.resolveTime||'—')+'</div></div>'+
+          cellsHtml+
         '</div>'+
         (thumbs?'<div class="oper-thumbs">'+thumbs+'</div>':'')+
 
@@ -2910,11 +3252,11 @@ function renderOper(){
         (cerrada?cerradaHtml:(!puede?sinAccesoHtml:('<div class="oper-form">'+
           '<div class="oper-title">Operatoria de cartera</div>'+
           '<div class="oper-choice">'+
-            '<label class="radio-opt"><input type="radio" name="oper-'+b.id+'" value="si"'+(b.operado===true?' checked':'')+'><div class="radio-label">✅ Sí, fue operado</div></label>'+
-            '<label class="radio-opt"><input type="radio" name="oper-'+b.id+'" value="no"'+(b.operado===false?' checked':'')+'><div class="radio-label">🚫 No fue operado</div></label>'+
+            '<label class="radio-opt"><input type="radio" name="oper-'+b.id+'" value="si"'+(b.operado===true?' checked':'')+'><div class="radio-label">'+(esCruce(b)?'✅ Sí, se aplicó el cruce':'✅ Sí, fue operado')+'</div></label>'+
+            '<label class="radio-opt"><input type="radio" name="oper-'+b.id+'" value="no"'+(b.operado===false?' checked':'')+'><div class="radio-label">'+(esCruce(b)?'🚫 No se pudo aplicar':'🚫 No fue operado')+'</div></label>'+
           '</div>'+
-          '<div class="field"><div class="label">Resumen de la gestión <span class="opt-tag">Obligatorio si no fue operado</span></div>'+
-            '<textarea id="oper-nota-'+b.id+'" rows="3" placeholder="Qué se hizo en cartera, o el motivo si no se operó">'+ea(b.operNota||'')+'</textarea></div>'+
+          '<div class="field"><div class="label">'+(esCruce(b)?'Corrección realizada <span class="opt-tag">Obligatorio si no se pudo aplicar</span>':'Resumen de la gestión <span class="opt-tag">Obligatorio si no fue operado</span>')+'</div>'+
+            '<textarea id="oper-nota-'+b.id+'" rows="3" placeholder="'+(esCruce(b)?'Qué corrección se hizo (de qué código a cuál), o por qué no se pudo':'Qué se hizo en cartera, o el motivo si no se operó')+'">'+ea(b.operNota||'')+'</textarea></div>'+
           '<div class="field"><div class="label">Evidencia de lo operado (imagen) <span class="opt-tag">Opcional</span></div>'+
             (b.evidenciaUrl?'<div class="oper-evid-actual"><img src="'+b.evidenciaUrl+'" alt="Evidencia" onclick="openLbUrl(\''+b.evidenciaUrl+'\',event)"><span>Evidencia cargada ✓ — toca la imagen para ampliar. Si subes otra, se reemplaza.</span></div>':'')+
             '<div class="oper-upload-row"><label class="oper-upload"><input type="file" accept="image/*" onchange="operFile('+b.id+',this)">📎 '+(b.evidenciaUrl?'Reemplazar imagen':'Adjuntar imagen')+'</label>'+
@@ -2983,7 +3325,11 @@ document.addEventListener('click',function(e){
 document.addEventListener('paste',function(e){
   var img=clipImage(e);if(!img)return;
   var av=document.querySelector('.view.active');if(!av)return;
-  if(av.id==='view-form'){e.preventDefault();setComprobante(comoCaptura(img));return}
+  if(av.id==='view-form'){
+    if(formSec==='cruce'){e.preventDefault();setCComprobante(comoCaptura(img))}
+    else if(formSec==='nueva'){e.preventDefault();setComprobante(comoCaptura(img))}
+    return;
+  }
   if(av.id==='view-oper'){
     var id=operPasteTarget();
     if(id===null){toast('warn','¿En qué boleta?','Abre la tarjeta de la boleta y haz clic dentro antes de pegar la captura.');return}
@@ -3141,6 +3487,7 @@ function operViewRows(){
     if(operPais&&bancoInfo(b.banco).pais!==operPais)return false;
     if(operBanco&&b.banco!==operBanco)return false;
     if(!asigPasa(b))return false;
+    if(operTipo&&(b.tipo||'boleta')!==operTipo)return false;
     return true;
   });
   var rows=conf.filter(function(b){
@@ -3160,12 +3507,12 @@ function toDate(iso){var t=Date.parse(iso||'');return isNaN(t)?null:new Date(t-n
 function dateOnly(f){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(f||'');return m?new Date(Date.UTC(+m[1],+m[2]-1,+m[3])):null}
 var XL_COLS=[
   ['ID',7],['País',16],['Banco',22],['Moneda',9],['Monto',14],['Fecha de transferencia',14],['Representante',26],['Código',12],['Zona',8],['# de boleta',14],['Correo',28],
-  ['Enviada',17],['Estado en banco',18],['Confirmada en banco',17],['Operatoria de cartera',18],['Semáforo',12],['Horas (pendiente / hasta operar)',16],['Resumen de la gestión',44],['Operado por (correo)',28],['Fecha de operatoria',17],['Evidencia de operatoria',22],['Turno en la cola',12],['Correlativo',14],['Operado por (nombre)',30],['Asignada a (nombre)',30],['Asignada a (correo)',30],['Asignada por',30],['Fecha de asignación',17]
+  ['Enviada',17],['Estado en banco',18],['Confirmada en banco',17],['Operatoria de cartera',18],['Semáforo',12],['Horas (pendiente / hasta operar)',16],['Resumen de la gestión',44],['Operado por (correo)',28],['Fecha de operatoria',17],['Evidencia de operatoria',22],['Turno en la cola',12],['Correlativo',14],['Operado por (nombre)',30],['Asignada a (nombre)',30],['Asignada a (correo)',30],['Asignada por',30],['Fecha de asignación',17],['Tipo',14],['Tipo de corrección',22],['Código incorrecto',18],['Nombre (cód. incorrecto)',26],['Zona (cód. incorrecto)',14],['Motivo',44],['Solicitante',28]
 ];
 var xlCorr={};
 function xlRow(b){
   var bi=bancoInfo(b.banco);
-  var estBanco=b.status==='confirmed'?'Confirmada en banco':(b.status==='rejected'?'No encontrada':'En proceso');
+  var estBanco=esCruce(b)?'No aplica (cruce de pago)':b.status==='confirmed'?'Confirmada en banco':(b.status==='rejected'?'No encontrada':'En proceso');
   var oper='',sem='',horas=null;
   if(b.status==='confirmed'){
     if(b.operado===true)oper='Operado';else if(b.operado===false)oper='No operado';else oper='Por operar';
@@ -3173,7 +3520,7 @@ function xlRow(b){
     else{var t0=Date.parse(b.resolveISO||b.submitISO||''),t1=Date.parse(b.operAt||'');if(!isNaN(t0)&&!isNaN(t1)&&t1>=t0)horas=Math.round((t1-t0)/36e5*10)/10}
   }
   return [b.id,bi.pais,bi.banco,bi.cur,parseFloat(b.monto)||0,dateOnly(b.fecha),b.representante||'',b.codigo||'',b.zona||'',b.numero||'',b.correo||'',
-    toDate(b.submitISO),estBanco,toDate(b.resolveISO),oper,sem,horas,b.operNota||'',b.operPor||'',toDate(b.operAt),b.evidenciaUrl||'',(xlCorr[b.id]||null),marcaUnica(b.id),b.operNombre||'',b.asigNombre||'',b.asigA||'',b.asigPor||'',toDate(b.asigAt)];
+    toDate(b.submitISO),estBanco,toDate(b.resolveISO),oper,sem,horas,b.operNota||'',b.operPor||'',toDate(b.operAt),b.evidenciaUrl||'',(xlCorr[b.id]||null),marcaUnica(b.id),b.operNombre||'',b.asigNombre||'',b.asigA||'',b.asigPor||'',toDate(b.asigAt),esCruce(b)?'Cruce de pago':'Boleta',esCruce(b)?(b.cruceSub==='mala_aplicacion'?'Mala aplicación':'Cruce entre códigos'):'',b.codInc||'',b.repInc||'',b.zonaInc||'',b.motivo||'',b.solicitante||''];
 }
 var XL_FILL={'En tiempo':'FFD1FAE5','Atención':'FFFEF3C7','Crítica':'FFFEE2E2','Operado':'FFD1FAE5','No operado':'FFFEE2E2','Por operar':'FFFEF3C7','Confirmada en banco':'FFD1FAE5','No encontrada':'FFFEE2E2','En proceso':'FFFEF3C7'};
 var XL_FONT={'En tiempo':'FF15803D','Atención':'FFB45309','Crítica':'FFDC2626','Operado':'FF15803D','No operado':'FFDC2626','Por operar':'FFB45309','Confirmada en banco':'FF15803D','No encontrada':'FFDC2626','En proceso':'FFB45309'};
@@ -3205,6 +3552,7 @@ function xlBoletasSheet(wb,name,list){
       if(v&&XL_FILL[v]){cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:XL_FILL[v]}};cell.font={bold:true,color:{argb:XL_FONT[v]}};cell.alignment={horizontal:'center',vertical:'middle'}}
     });
     row.getCell(18).alignment={wrapText:true,vertical:'middle'};
+    row.getCell(34).alignment={wrapText:true,vertical:'middle'};
     var ev=row.getCell(21),evu=ev.value;
     if(evu&&String(evu).indexOf('http')===0){ev.value={text:'Ver evidencia',hyperlink:String(evu)};ev.font={color:{argb:'FF0563C1'},underline:true}}
     if(i%2===1)row.eachCell(function(c){if(!c.fill||!c.fill.fgColor)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF5F7FA'}}});
@@ -3475,6 +3823,7 @@ if(SOLO){
 if(SOLO==='form'){setSS('ok','Listo para enviar')}else{load()}
 
 initPaises();
+initCruce();
 if(esAdmin())setAdminMode(true);
 (function(){var h=(location.hash||'').replace('#','');var t=SOLO||(PAGES[h]?h:null);if(t)switchTab(t)})();
 </script>
