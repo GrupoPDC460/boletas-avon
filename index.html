@@ -990,6 +990,13 @@ body.admin-on .admin-only{display:inline-block}
 /* El botón de administrador reserva su lugar: la barra no cambia de tamaño al iniciar sesión */
 .oper-export .admin-only{display:inline-block;visibility:hidden}
 body.admin-on .oper-export .admin-only{visibility:visible}
+
+/* ═══ Pago referenciado ═══ */
+.ref-alerta{margin:4px 0 16px;padding:14px 16px;border-radius:12px;background:#FFF7ED;border:2px solid #F59E0B;color:#7C2D12;font-size:.84rem;line-height:1.5}
+.ref-alerta-t{font-weight:900;font-size:.95rem;margin-bottom:4px;color:#B45309}
+.ref-chip{display:inline-block;padding:1px 9px;border-radius:20px;background:#E3F6FC;border:1px solid #7DBFE6;color:#00216F;font-weight:800;font-size:.66rem;vertical-align:middle;white-space:nowrap}
+.ref-chip.no{background:#F1F3F8;border-color:#C9CEDB;color:#434A5D}
+.ref-aviso{margin:10px 0 8px;padding:10px 12px;border-radius:10px;background:#E3F6FC;border:1px solid #7DBFE6;color:#00216F;font-size:.78rem;line-height:1.45}
 </style>
 </head>
 <body>
@@ -1053,6 +1060,14 @@ body.admin-on .oper-export .admin-only{visibility:visible}
   <div id="form-sec-nueva">
 
   <div class="form-card">
+    <div class="card-heading">💳 Tipo de pago</div>
+    <div class="cx-tipos">
+      <label class="radio-opt"><input type="radio" name="tpago" value="ref" onchange="cSelect(this);refAlerta()"><div><div class="radio-label">Pago referenciado</div><div class="radio-sub">Con el código de la representante, en un punto de pago</div></div></label>
+      <label class="radio-opt"><input type="radio" name="tpago" value="noref" onchange="cSelect(this);refAlerta()"><div><div class="radio-label">Pago no referenciado</div><div class="radio-sub">Depósito directo a una cuenta de la empresa</div></div></label>
+    </div>
+  </div>
+
+  <div class="form-card">
     <div class="card-heading">📋 Datos de la boleta</div>
 
     <div class="field">
@@ -1067,7 +1082,11 @@ body.admin-on .oper-export .admin-only{visibility:visible}
 
     <div class="field">
       <div class="label">Fecha de la boleta <span class="req">*</span></div>
-      <input type="date" id="fecha">
+      <input type="date" id="fecha" oninput="refAlerta()" onchange="refAlerta()">
+    </div>
+    <div class="ref-alerta" id="ref-alerta" style="display:none" role="alert">
+      <div class="ref-alerta-t">⚠️ Este pago es de hoy</div>
+      <div>Los pagos referenciados se aplican solos dentro de las <strong>24 horas</strong> siguientes al abono: se reflejará a más tardar <strong>mañana</strong>. Por ahora no hace falta enviar la solicitud. Si pasado ese plazo no se refleja, vuelve a registrarla.</div>
     </div>
 
     <div class="field">
@@ -1486,6 +1505,15 @@ var PAISES=[
 /* Correlativo: código fijo para siempre, derivado del número interno de la boleta */
 function marcaUnica(id){return 'CC-'+String(id).padStart(5,'0')}
 function esCruce(b){return b&&b.tipo==='cruce'}
+var TZ_PAIS={'Panamá':'America/Panama','República Dominicana':'America/Santo_Domingo'};
+/* Fecha de hoy (AAAA-MM-DD) en la zona horaria del país */
+function hoyPais(pais){
+  try{return new Date().toLocaleDateString('en-CA',{timeZone:TZ_PAIS[pais]||'America/Guatemala'})}
+  catch(e){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+}
+/* Un pago referenciado dentro de sus primeras 24 h (la boleta es de hoy) todavía no se puede validar ni pasar a operatoria */
+function refEnPlazo(b){return b.referenciado===true&&String(b.fecha)>=hoyPais(bancoInfo(b.banco).pais)}
+function tipoPagoTxt(b){return b.referenciado===true?'Referenciado':(b.referenciado===false?'No referenciado':'Sin dato')}
 function ea(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 /* Valor guardado en la columna banco: los 2 bancos históricos de Honduras se guardan igual que antes;
    el resto se guarda como "Banco (País)" para distinguir, p. ej., Citibank de cada país. */
@@ -1502,6 +1530,12 @@ function bancoInfo(v){
 function bankClass(v){return v&&v.indexOf('Occidente')>=0?'bank-occ':(v&&v.indexOf('Atlántida')>=0?'bank-atl':'bank-gen')}
 function barClass(v){return v&&v.indexOf('Occidente')>=0?'bar-occ':(v&&v.indexOf('Atlántida')>=0?'bar-atl':'bar-gen')}
 function mon(v,n){return bancoInfo(v).cur+' '+fmt(n)}
+function refAlerta(){
+  var el=document.getElementById('ref-alerta');if(!el)return;
+  var t=document.querySelector('input[name="tpago"]:checked'),f=document.getElementById('fecha').value;
+  var pais=document.getElementById('pais').value;
+  el.style.display=(t&&t.value==='ref'&&f&&f>=hoyPais(pais))?'block':'none';
+}
 function initPaises(){
   var sel=document.getElementById('pais');
   sel.innerHTML=PAISES.map(function(p){return '<option value="'+ea(p.n)+'">'+ea(p.n)+'</option>'}).join('');
@@ -1524,6 +1558,7 @@ function onPais(){
       '<div><div class="radio-label">🏦 '+ea(b)+'</div><div class="radio-sub">'+ea(p.n)+' · '+ea(p.cur)+'</div></div></label>';
   }).join('');
   document.getElementById('monto-cur').textContent='('+p.cur+')';
+  refAlerta();
 }
 
 /* ─── STATE ─────────────────────────────────── */
@@ -1552,6 +1587,8 @@ function rowToBoleta(r){
     operPor:r.operado_por,
     operNombre:r.operado_nombre,
     tipo:r.tipo||'boleta',
+    referenciado:(r.referenciado===true||r.referenciado===false)?r.referenciado:null,
+    motivoRechazo:r.motivo_rechazo,
     cruceSub:r.cruce_subtipo,
     codInc:r.codigo_incorrecto,
     repInc:r.representante_incorrecto,
@@ -1850,6 +1887,8 @@ function submitForm(){
   var codRep=document.getElementById('codigo').value.trim();
   var zonaRep=document.getElementById('zona').value.trim();
   var numBol=document.getElementById('numero-boleta').value.trim();
+  var tpago=document.querySelector('input[name="tpago"]:checked');
+  if(!tpago){toast('warn','Tipo de pago requerido','Indica si el pago es referenciado o no referenciado.');return}
   if(!banco){toast('warn','Banco requerido','Selecciona el país y el banco de procedencia.');return}
   if(!fecha){toast('warn','Fecha requerida','Ingresa la fecha de la boleta.');return}
   if(!monto||parseFloat(monto)<=0){toast('warn','Monto inválido','Ingresa un monto mayor a cero.');return}
@@ -1859,23 +1898,27 @@ function submitForm(){
   if(!correo||!correo.includes('@')){toast('warn','Correo inválido','Ingresa un correo electrónico válido.');return}
   if(!fileData){toast('warn','Comprobante faltante','Debes adjuntar el Bach (comprobante bancario).');return}
 
+  if(tpago.value==='ref'&&fecha>=hoyPais(document.getElementById('pais').value)){
+    if(!confirm('Este pago referenciado es de hoy y se reflejará a más tardar mañana (se aplica dentro de 24 horas).\n\nSi lo envías ahora, el equipo lo rechazará como pago referenciado.\n\n¿Enviar de todos modos?'))return;
+  }
   var btn=document.getElementById('btn-submit');
   btn.disabled=true;btn.textContent='Subiendo comprobante...';
 
   var rep=document.getElementById('representante').value.trim();
   var montoF=parseFloat(monto).toFixed(2);
 
-  var nuevaMarca='';
+  var nuevaMarca='',directo=false;
   uploadImage(fileData,'bach').then(function(path){
     btn.textContent='Guardando...';
     return sb.from('boletas').insert({
       banco:banco.value,fecha:fecha,monto:montoF,correo:correo,
       representante:rep||null,codigo_representante:codRep,zona:zonaRep,numero_boleta:numBol||null,file_name:fileData.name,
-      image_path:path,status:'pending'
+      image_path:path,status:'pending',referenciado:tpago.value==='ref'
     }).select().single();
   }).then(function(res){
     if(res.error)throw res.error;
     nuevaMarca=(res.data&&res.data.id)?marcaUnica(res.data.id):'';
+    directo=!!(res.data&&res.data.status==='confirmed');
     /* el historial de "nueva solicitud" lo registra el servidor */
   }).then(function(){
     btn.disabled=false;btn.textContent='📨 Enviar solicitud de confirmación';
@@ -1885,7 +1928,7 @@ function submitForm(){
     if(nuevaMarca)trkGuardar(nuevaMarca,codRep,mon(banco.value,montoF)+' · '+bancoInfo(banco.value).banco);
     if(fm)fm.innerHTML=nuevaMarca?'Tu correlativo: <span class="marca">'+nuevaMarca+'</span> — anótalo para dar seguimiento.<br><button type="button" class="trk-link" onclick="trkIr(\''+nuevaMarca+'\',\''+ea(codRep).replace(/'/g,"\\'")+'\')">🔎 Rastrear esta boleta</button>':'';
     var fsub=document.getElementById('form-success-sub');
-    if(fsub&&SOLO==='form')fsub.textContent='El equipo gestionará la boleta.';
+    if(fsub)fsub.textContent=directo?'Es un pago referenciado con el plazo cumplido: pasó directo a Operatoria de cartera para aplicarse.':(SOLO==='form'?'El equipo gestionará la boleta.':'El equipo gestionará la boleta y podrás ver el resultado en la pestaña Gestión.');
     fs.classList.add('show');setTimeout(function(){fs.classList.remove('show')},15000);
     toast('success','Solicitud enviada',nuevaMarca?'Correlativo: '+nuevaMarca:'Visible para todo el equipo en tiempo real.');
     refreshBoletas();
@@ -1898,6 +1941,8 @@ function submitForm(){
 
 function resetForm(){
   var ch=document.querySelector('input[name="banco"]:checked');if(ch)ch.checked=false;
+  var tp=document.querySelector('input[name="tpago"]:checked');if(tp)tp.checked=false;
+  refAlerta();
   document.querySelectorAll('#form-sec-nueva .radio-opt').forEach(function(el){el.classList.remove('selected')});
   ['fecha','monto','representante','codigo','zona','numero-boleta','correo'].forEach(function(id){document.getElementById(id).value=''});
   document.getElementById('file-input').value='';
@@ -1970,7 +2015,7 @@ function renderPanel(){
   }
   list.innerHTML=rows.map(function(b){
     var stC=b.status==='pending'?'st-pending':b.status==='confirmed'?'st-confirmed':'st-rejected';
-    var stT=b.status==='pending'?'⏳ Pendiente':b.status==='confirmed'?'✅ En banco':'❌ No encontrada';
+    var stT=b.status==='pending'?'⏳ Pendiente':b.status==='confirmed'?(b.referenciado===true?'➡️ En operatoria':'✅ En banco'):(b.motivoRechazo==='referenciado_24h'?'❌ Rechazada · referenciado':'❌ No encontrada');
     var bkC=bankClass(b.banco);var bi=bancoInfo(b.banco);
     var isExp=expandedId===b.id;
 
@@ -1979,7 +2024,15 @@ function renderPanel(){
       :'';
 
     var actions='';
-    if(b.status==='pending'){
+    if(b.status==='pending'&&b.referenciado===true){
+      var enPlazo=refEnPlazo(b);
+      actions='<div class="ref-aviso">🏷️ <strong>Pago referenciado.</strong> No se valida en el estado de cuenta (el banco envía el desglose en un batch). Se aplica dentro de las 24 horas siguientes al abono.'+(enPlazo?' <strong>Todavía está dentro del plazo.</strong>':' <strong>El plazo ya se cumplió.</strong>')+'</div>'+
+        '<div class="action-row">'+
+        (enPlazo?'':'<button class="btn-confirm" onclick="doConfirm('+b.id+',event)">➡️ Pasar a operatoria de cartera</button>')+
+        '<button class="btn-reject" onclick="doRejectRef('+b.id+',event)">❌ Rechazar: pago referenciado</button>'+
+      '</div>'+
+      '<div class="action-hint">'+(enPlazo?'💡 Rechaza el caso: el pago se aplicará solo y quedará indicado en el rastreo.':'💡 Si el pago sigue sin reflejarse, pásalo a operatoria para que cartera lo aplique.')+'</div>'+capHtml;
+    } else if(b.status==='pending'){
       actions='<div class="action-row">'+
         '<button class="btn-confirm" onclick="doConfirm('+b.id+',event)">✅ Confirmada en banco</button>'+
         '<button class="btn-reject" onclick="doReject('+b.id+',event)">❌ No encontrada</button>'+
@@ -2008,7 +2061,7 @@ function renderPanel(){
         '<span class="bank-badge '+bkC+'">'+ea(bi.banco)+'</span>'+
         '<div class="boleta-info">'+
           '<div class="boleta-rep">'+(b.representante||'<span style="opacity:.5;font-style:italic">Sin nombre</span>')+'</div>'+
-          '<div class="boleta-meta">'+ea(bi.pais)+' · '+b.fecha+(b.codigo?' · Cód. '+ea(b.codigo):'')+(b.zona?' · Zona '+ea(b.zona):'')+' · '+b.correo+'</div>'+
+          '<div class="boleta-meta">'+ea(bi.pais)+' · '+b.fecha+(b.codigo?' · Cód. '+ea(b.codigo):'')+(b.zona?' · Zona '+ea(b.zona):'')+(b.referenciado===true?' · <span class="ref-chip">🏷️ Referenciado</span>':(b.referenciado===false?' · <span class="ref-chip no">No referenciado</span>':''))+' · '+b.correo+'</div>'+
         '</div>'+
         '<div class="boleta-right">'+
           '<div class="boleta-amount">'+mon(b.banco,b.monto)+'</div>'+
@@ -2020,6 +2073,7 @@ function renderPanel(){
         '<div class="detail-grid">'+
           '<div><div class="d-lbl">Correlativo</div><div class="d-val"><span class="marca">'+marcaUnica(b.id)+'</span></div></div>'+
           '<div><div class="d-lbl">Enviada</div><div class="d-val">'+b.submitTime+'</div></div>'+
+          '<div><div class="d-lbl">Tipo de pago</div><div class="d-val">'+tipoPagoTxt(b)+'</div></div>'+
           '<div><div class="d-lbl">Monto</div><div class="d-val" style="color:var(--avon);font-weight:700">'+mon(b.banco,b.monto)+'</div></div>'+
           '<div><div class="d-lbl">Banco</div><div class="d-val">'+ea(bi.banco)+' · '+ea(bi.pais)+'</div></div>'+
           '<div><div class="d-lbl">Código representante</div><div class="d-val">'+(b.codigo?ea(b.codigo):'—')+'</div></div>'+
@@ -2099,6 +2153,8 @@ function gestionErr(d){
       if(esAdmin()){sesionAdminInvalida()}
       else{avonClave='';avonSave();toast('warn','Clave Avon incorrecta','Vuelve a ingresarla para continuar.')}
     },
+    REFERENCIADO_EN_PLAZO:function(){toast('warn','Pago referenciado en plazo','Aún no se cumplen las 24 horas del abono: no se puede pasar a operatoria. Recházalo como pago referenciado.');refreshBoletas()},
+    MOTIVO_INVALIDO:function(){toast('warn','Motivo no válido','Actualiza la página e inténtalo de nuevo.')},
     YA_RESUELTA:function(){toast('warn','Boleta ya resuelta','Otra persona ya la confirmó o rechazó. Se actualizó la lista.');refreshBoletas()},
     BOLETA_NO_ENCONTRADA:function(){toast('warn','Boleta no encontrada','Actualiza la página e inténtalo de nuevo.');refreshBoletas()},
     DEMASIADOS_INTENTOS:function(){toast('warn','Demasiados intentos','Espera unos minutos e inténtalo de nuevo.')},
@@ -2122,21 +2178,22 @@ function adminErr(d){
   (m[d.error]||function(){toast('warn','No se pudo completar','Código: '+(d.error||'desconocido'))})();
 }
 
-function resolverBoleta(id,estado){
+function resolverBoleta(id,estado,motivo){
   var b=boletas.find(function(x){return x.id===id});if(!b)return;
   var c=gestionCred();
-  sb.rpc('gestion_resolver',{p_id:id,p_estado:estado,p_clave:c.p_clave,p_email:c.p_email}).then(function(res){
+  sb.rpc('gestion_resolver',{p_id:id,p_estado:estado,p_clave:c.p_clave,p_email:c.p_email,p_motivo:motivo||null}).then(function(res){
     if(res.error){toast('warn','Error',estado==='confirmed'?'No se pudo confirmar.':'No se pudo actualizar.');console.error(res.error);return}
     var d=res.data||{};
     if(!d.ok){gestionErr(d);return}
     var det=mon(b.banco,b.monto)+' · '+b.banco+(b.representante?' — '+b.representante:'');
-    if(estado==='confirmed')toast('success','✅ Boleta confirmada en banco',det);
-    else toast('warn','⚠️ No encontrada en banco',det);
+    if(estado==='confirmed')toast('success',b.referenciado===true?'➡️ Pasó a operatoria de cartera':'✅ Boleta confirmada en banco',det);
+    else toast('warn',motivo==='referenciado_24h'?'⚠️ Rechazada: pago referenciado':'⚠️ No encontrada en banco',det);
     refreshBoletas();
   });
 }
 function doConfirm(id,e){e.stopPropagation();requireClave(function(){resolverBoleta(id,'confirmed')})}
-function doReject(id,e){e.stopPropagation();requireClave(function(){resolverBoleta(id,'rejected')})}
+function doReject(id,e){e.stopPropagation();requireClave(function(){resolverBoleta(id,'rejected','no_encontrada')})}
+function doRejectRef(id,e){e.stopPropagation();requireClave(function(){resolverBoleta(id,'rejected','referenciado_24h')})}
 
 function doCaptura(id,e){
   e.stopPropagation();
@@ -2454,6 +2511,13 @@ function trkEtapaCorta(b){
     if(b.operado===false)return {t:'No aplicado',k:'warn'};
     return {t:'En operatoria de cartera',k:'oper'};
   }
+  if(b.referenciado===true){
+    if(b.estado==='pending')return {t:'En revisión · pago referenciado',k:'val'};
+    if(b.estado==='rejected')return {t:'Rechazada · pago referenciado',k:'error'};
+    if(b.operado===true)return {t:'Operada',k:'ok'};
+    if(b.operado===false)return {t:'No operada',k:'warn'};
+    return {t:'En operatoria de cartera',k:'oper'};
+  }
   if(b.estado==='rejected')return {t:'No encontrada en banco',k:'error'};
   if(b.estado==='pending')return {t:'En validación en banco',k:'val'};
   if(b.operado===true)return {t:'Operada',k:'ok'};
@@ -2506,63 +2570,93 @@ function trkEstadoTxt(d){
     if(d.operado===false)return 'NO APLICADO · EN REVISIÓN DE CARTERA';
     return 'EN OPERATORIA DE CARTERA';
   }
+  if(d.referenciado===true){
+    if(d.estado==='pending')return 'EN REVISIÓN · PAGO REFERENCIADO';
+    if(d.estado==='rejected')return 'RECHAZADA · PAGO REFERENCIADO';
+    if(d.operado===true)return 'OPERADA · PROCESO COMPLETO';
+    if(d.operado===false)return 'NO OPERADA · EN REVISIÓN DE CARTERA';
+    return 'EN OPERATORIA DE CARTERA · PAGO REFERENCIADO';
+  }
   if(d.estado==='rejected')return 'NO ENCONTRADA EN BANCO';
   if(d.estado==='pending')return 'EN VALIDACIÓN EN BANCO';
   if(d.operado===true)return 'OPERADA · PROCESO COMPLETO';
   if(d.operado===false)return 'NO OPERADA · EN REVISIÓN DE CARTERA';
   return 'CONFIRMADA · EN OPERATORIA DE CARTERA';
 }
+/* Dibuja la línea de etapas, la nota y la tabla de detalle */
+function trkPintar(o){
+  var mark={done:'✓',current:'●',error:'✕',warn:'!',todo:''};
+  var steps=o.st.map(function(x,i){
+    var conectaVerde=(x==='done'&&o.st[i+1]&&o.st[i+1]!=='todo');
+    return '<div class="trk-step s-'+x+(conectaVerde?' conecta':'')+'" style="--i:'+i+'">'+
+      '<div class="trk-t">'+o.titulos[i]+'</div>'+
+      '<div class="trk-node"><b>'+mark[x]+'</b></div>'+
+      '<div class="trk-card">'+TRK_SVG[o.iconos[i]]+'</div>'+
+      '<div class="trk-d">'+(o.fechas[i]?fmtTime(o.fechas[i]):'')+'</div></div>';
+  }).join('');
+  document.getElementById('trk-result').innerHTML=
+    '<div class="trk-steps'+(o.st.length===3?' tres':'')+'">'+steps+'</div>'+
+    '<div class="trk-nota trk-nota-'+o.tono+'">'+o.nota+'</div>'+
+    '<div class="trk-tabla e-'+o.tono+'">'+o.filas.map(function(f){return '<div class="trk-row"><div class="trk-k">'+ea(f[0])+'</div><div class="trk-v">'+ea(f[1])+'</div></div>'}).join('')+'</div>'+
+    '<div class="trk-act">'+(trkLista?'<button class="btn-export alt" onclick="trkVolver()">← Todas mis solicitudes</button>':'')+'<button class="btn-export alt" onclick="trkBuscar()">🔄 Actualizar</button><span>Actualizado '+new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})+'</span></div>';
+}
 function trkRender(d){
-  var est=d.estado,op=d.operado,st,titulos,fechas,iconos,filas,nota,tono,cx=(d.tipo==='cruce');
-  if(cx){
-    st=op===true?['done','done','done']:(op===false?['done','done','warn']:['done','current','todo']);
-    titulos=['SOLICITUD DE CRUCE RECIBIDA','EN REVISIÓN DE CARTERA',op===false?'NO APLICADO':'CRUCE APLICADO'];
-    fechas=[d.enviada,null,(op!==null?d.operado_at:null)];
-    iconos=[1,4,5];
-    filas=[['ESTADO',trkEstadoTxt(d)],['CORRELATIVO',d.marca],['TIPO',d.subtipo==='mala_aplicacion'?'Mala aplicación':'Cruce entre códigos'],
-           ['CÓDIGO INCORRECTO',d.codigo_incorrecto||'—'],['CÓDIGO CORRECTO',d.codigo_correcto||'—']];
-    if(d.representante)filas.push(['REPRESENTANTE (CÓD. CORRECTO)',d.representante]);
-    filas.push(['BANCO · PAÍS',d.banco+' · '+d.pais],['MONTO',d.simbolo+' '+fmt(d.monto)],['FECHA DE LA BOLETA',d.fecha]);
-    if(d.numero_boleta)filas.push(['# DE BOLETA',d.numero_boleta]);
-    filas.push(['ENVIADA',fmtTime(d.enviada)]);
-    if(op!==null&&d.operado_at)filas.push([op?'CRUCE APLICADO':'REVISADO POR CARTERA',fmtTime(d.operado_at)]);
-    nota=op===false?'Cartera revisó el cruce y aún no pudo aplicarlo. El equipo dará seguimiento.'
-        :(op===true?'¡Listo! Cartera aplicó el cruce de pago.':'Tu solicitud de cruce llegó a Operatoria de cartera y está en cola para aplicarse.');
-    tono=op===false?'warn':(op===true?'ok':'info');
+  var est=d.estado,op=d.operado,o;
+  if(d.tipo==='cruce'){
+    o={st:op===true?['done','done','done']:(op===false?['done','done','warn']:['done','current','todo']),
+       titulos:['SOLICITUD DE CRUCE RECIBIDA','EN REVISIÓN DE CARTERA',op===false?'NO APLICADO':'CRUCE APLICADO'],
+       fechas:[d.enviada,null,(op!==null?d.operado_at:null)],iconos:[1,4,5],
+       filas:[['ESTADO',trkEstadoTxt(d)],['CORRELATIVO',d.marca],['TIPO',d.subtipo==='mala_aplicacion'?'Mala aplicación':'Cruce entre códigos'],
+              ['CÓDIGO INCORRECTO',d.codigo_incorrecto||'—'],['CÓDIGO CORRECTO',d.codigo_correcto||'—']],
+       nota:op===false?'Cartera revisó el cruce y aún no pudo aplicarlo. El equipo dará seguimiento.':(op===true?'¡Listo! Cartera aplicó el cruce de pago.':'Tu solicitud de cruce llegó a Operatoria de cartera y está en cola para aplicarse.'),
+       tono:op===false?'warn':(op===true?'ok':'info')};
+    if(d.representante)o.filas.push(['REPRESENTANTE (CÓD. CORRECTO)',d.representante]);
+    o.filas.push(['BANCO · PAÍS',d.banco+' · '+d.pais],['MONTO',d.simbolo+' '+fmt(d.monto)],['FECHA DE LA BOLETA',d.fecha]);
+    if(d.numero_boleta)o.filas.push(['# DE BOLETA',d.numero_boleta]);
+    o.filas.push(['ENVIADA',fmtTime(d.enviada)]);
+    if(op!==null&&d.operado_at)o.filas.push([op?'CRUCE APLICADO':'REVISADO POR CARTERA',fmtTime(d.operado_at)]);
+  }else if(d.referenciado===true){
+    var rech=(est==='rejected');
+    o={st:est==='pending'?['done','current','todo']:(rech?['done','error','todo']:(op===true?['done','done','done']:(op===false?['done','done','warn']:['done','current','todo']))),
+       titulos:['SOLICITUD RECIBIDA',est==='pending'?'EN REVISIÓN DEL EQUIPO':(rech?'RECHAZADA':'EN OPERATORIA DE CARTERA'),op===false?'NO OPERADA':'OPERADA'],
+       fechas:[d.enviada,(est==='pending'?null:d.confirmada),(op!==null?d.operado_at:null)],
+       iconos:[1,est==='confirmed'?4:3,5],
+       filas:[['ESTADO',trkEstadoTxt(d)],['CORRELATIVO',d.marca],['TIPO DE PAGO','Pago referenciado'],['REPRESENTANTE',d.representante||'—'],
+              ['BANCO · PAÍS',d.banco+' · '+d.pais],['MONTO',d.simbolo+' '+fmt(d.monto)],['FECHA DEL PAGO',d.fecha]],
+       nota:est==='pending'?'Es un pago referenciado: se aplica solo dentro de las 24 horas siguientes al abono. El equipo lo está revisando.'
+           :(rech?'Es un pago referenciado: se aplica dentro de las 24 horas después de que la representante realizó el abono. Si pasado ese plazo no se refleja, registra la solicitud nuevamente.'
+           :(op===true?'¡Listo! Tu pago referenciado ya fue aplicado.'
+           :(op===false?'Cartera revisó el pago y aún no pudo aplicarlo. El equipo dará seguimiento.':'Tu pago referenciado pasó a Operatoria de cartera para aplicarse.'))),
+       tono:rech?'error':(op===false?'warn':(op===true?'ok':'info'))};
+    if(d.numero_boleta)o.filas.push(['# DE BOLETA',d.numero_boleta]);
+    o.filas.push(['ENVIADA',fmtTime(d.enviada)]);
+    if(est!=='pending'&&d.confirmada)o.filas.push([rech?'REVISADA POR EL EQUIPO':'PASÓ A OPERATORIA',fmtTime(d.confirmada)]);
+    if(op!==null&&d.operado_at)o.filas.push([op?'OPERADA':'REVISADA POR CARTERA',fmtTime(d.operado_at)]);
   }else{
+    var st;
     if(est==='rejected')st=['done','done','error','todo','todo'];
     else if(est==='pending')st=['done','current','todo','todo','todo'];
     else if(op===true)st=['done','done','done','done','done'];
     else if(op===false)st=['done','done','done','done','warn'];
     else st=['done','done','done','current','todo'];
-    titulos=['SOLICITUD RECIBIDA','VALIDACIÓN EN BANCO',est==='rejected'?'NO ENCONTRADA EN BANCO':'CONFIRMADA EN BANCO','OPERATORIA DE CARTERA',op===false?'NO OPERADA':'OPERADA'];
-    fechas=[d.enviada,(est!=='pending'?d.confirmada:null),(est!=='pending'?d.confirmada:null),null,(op!==null?d.operado_at:null)];
-    iconos=[1,2,3,4,5];
-    filas=[['ESTADO',trkEstadoTxt(d)],['CORRELATIVO',d.marca],['REPRESENTANTE',d.representante||'—'],['BANCO · PAÍS',d.banco+' · '+d.pais],['MONTO',d.simbolo+' '+fmt(d.monto)],['FECHA DE TRANSFERENCIA',d.fecha]];
-    if(d.numero_boleta)filas.push(['# DE BOLETA',d.numero_boleta]);
-    filas.push(['ENVIADA',fmtTime(d.enviada)]);
-    if(est!=='pending'&&d.confirmada)filas.push([est==='rejected'?'REVISADA EN BANCO':'CONFIRMADA EN BANCO',fmtTime(d.confirmada)]);
-    if(op!==null&&d.operado_at)filas.push([op?'OPERADA':'REVISADA POR CARTERA',fmtTime(d.operado_at)]);
-    nota=est==='rejected'?'El banco no encontró esta transferencia. Comunícate con el equipo de cobros para revisarla.'
-        :(op===false?'Cartera revisó la boleta y aún no pudo aplicarla. El equipo dará seguimiento.'
-        :(est==='pending'?'Estamos validando tu boleta con el banco.'
-        :(op===true?'¡Listo! Tu boleta ya fue aplicada.':'Tu boleta ya está confirmada y espera su aplicación en cartera.')));
-    tono=est==='rejected'?'error':(op===false?'warn':(op===true?'ok':'info'));
+    o={st:st,
+       titulos:['SOLICITUD RECIBIDA','VALIDACIÓN EN BANCO',est==='rejected'?'NO ENCONTRADA EN BANCO':'CONFIRMADA EN BANCO','OPERATORIA DE CARTERA',op===false?'NO OPERADA':'OPERADA'],
+       fechas:[d.enviada,(est!=='pending'?d.confirmada:null),(est!=='pending'?d.confirmada:null),null,(op!==null?d.operado_at:null)],
+       iconos:[1,2,3,4,5],
+       filas:[['ESTADO',trkEstadoTxt(d)],['CORRELATIVO',d.marca]],
+       nota:est==='rejected'?'El banco no encontró esta transferencia. Comunícate con el equipo de cobros para revisarla.'
+           :(op===false?'Cartera revisó la boleta y aún no pudo aplicarla. El equipo dará seguimiento.'
+           :(est==='pending'?'Estamos validando tu boleta con el banco.'
+           :(op===true?'¡Listo! Tu boleta ya fue aplicada.':'Tu boleta ya está confirmada y espera su aplicación en cartera.'))),
+       tono:est==='rejected'?'error':(op===false?'warn':(op===true?'ok':'info'))};
+    if(d.referenciado===false)o.filas.push(['TIPO DE PAGO','Pago no referenciado']);
+    o.filas.push(['REPRESENTANTE',d.representante||'—'],['BANCO · PAÍS',d.banco+' · '+d.pais],['MONTO',d.simbolo+' '+fmt(d.monto)],['FECHA DE TRANSFERENCIA',d.fecha]);
+    if(d.numero_boleta)o.filas.push(['# DE BOLETA',d.numero_boleta]);
+    o.filas.push(['ENVIADA',fmtTime(d.enviada)]);
+    if(est!=='pending'&&d.confirmada)o.filas.push([est==='rejected'?'REVISADA EN BANCO':'CONFIRMADA EN BANCO',fmtTime(d.confirmada)]);
+    if(op!==null&&d.operado_at)o.filas.push([op?'OPERADA':'REVISADA POR CARTERA',fmtTime(d.operado_at)]);
   }
-  var mark={done:'✓',current:'●',error:'✕',warn:'!',todo:''};
-  var steps=st.map(function(x,i){
-    var conectaVerde=(x==='done'&&st[i+1]&&st[i+1]!=='todo');
-    return '<div class="trk-step s-'+x+(conectaVerde?' conecta':'')+'" style="--i:'+i+'">'+
-      '<div class="trk-t">'+titulos[i]+'</div>'+
-      '<div class="trk-node"><b>'+mark[x]+'</b></div>'+
-      '<div class="trk-card">'+TRK_SVG[iconos[i]]+'</div>'+
-      '<div class="trk-d">'+(fechas[i]?fmtTime(fechas[i]):'')+'</div></div>';
-  }).join('');
-  document.getElementById('trk-result').innerHTML=
-    '<div class="trk-steps'+(cx?' tres':'')+'">'+steps+'</div>'+
-    '<div class="trk-nota trk-nota-'+tono+'">'+nota+'</div>'+
-    '<div class="trk-tabla e-'+tono+'">'+filas.map(function(f){return '<div class="trk-row"><div class="trk-k">'+ea(f[0])+'</div><div class="trk-v">'+ea(f[1])+'</div></div>'}).join('')+'</div>'+
-    '<div class="trk-act">'+(trkLista?'<button class="btn-export alt" onclick="trkVolver()">← Todas mis solicitudes</button>':'')+'<button class="btn-export alt" onclick="trkBuscar()">🔄 Actualizar</button><span>Actualizado '+new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})+'</span></div>';
+  trkPintar(o);
 }
 
 /* ─── DASHBOARD DE OPERATORIA: filtros y gráficas con movimiento ─── */
@@ -3237,7 +3331,7 @@ function renderOper(){
         '<span class="bank-badge '+bankClass(b.banco)+'">'+ea(bi.banco)+'</span>'+
         '<div class="boleta-info">'+
           '<div class="boleta-rep">'+(esCruce(b)?'<span class="cx-badge">🔀 Cruce</span> <span class="cx-codes">'+ea(b.codInc||'—')+' → '+ea(b.codigo||'—')+'</span>':(b.representante?ea(b.representante):'<span style="opacity:.5;font-style:italic">Sin nombre</span>')+(b.codigo?' · Cód. '+ea(b.codigo):''))+'</div>'+
-          '<div class="boleta-meta"><span class="marca">'+marcaUnica(b.id)+'</span> · '+ea(bi.pais)+' · '+b.fecha+(b.zona?' · Zona '+ea(b.zona):'')+(b.numero?' · Boleta #'+ea(b.numero):'')+(b.asigA?' · <span class="asig-chip'+(opSes&&mailIgual(b.asigA,opSes.email)?' mine':'')+'">👤 '+ea(b.asigNombre||b.asigA)+'</span>':'')+'</div>'+
+          '<div class="boleta-meta"><span class="marca">'+marcaUnica(b.id)+'</span> · '+ea(bi.pais)+' · '+b.fecha+(b.zona?' · Zona '+ea(b.zona):'')+(b.numero?' · Boleta #'+ea(b.numero):'')+(b.referenciado===true&&!esCruce(b)?' · <span class="ref-chip">🏷️ Referenciado</span>':'')+(b.asigA?' · <span class="asig-chip'+(opSes&&mailIgual(b.asigA,opSes.email)?' mine':'')+'">👤 '+ea(b.asigNombre||b.asigA)+'</span>':'')+'</div>'+
         '</div>'+
         '<div class="boleta-right"><div class="boleta-amount">'+mon(b.banco,b.monto)+'</div>'+operBadge(b)+'</div>'+
         '<div class="chev'+(operOpen[b.id]?' open':'')+'">▾</div>'+
@@ -3248,6 +3342,7 @@ function renderOper(){
           '<div><div class="d-lbl">Correlativo</div><div class="d-val"><span class="marca">'+marcaUnica(b.id)+'</span></div></div>'+
           '<div><div class="d-lbl">Turno en la cola</div><div class="d-val">'+(num?'<strong>#'+num+'</strong> de '+nAbiertas:'Cerrada')+'</div></div>'+
           '<div><div class="d-lbl">Asignada a</div><div class="d-val">'+(b.asigA?ea(b.asigNombre||b.asigA)+'<div class="asig-sub">'+(b.asigPor?'por '+ea(b.asigPor)+' · ':'')+(b.asigAt?fmtTime(b.asigAt):'')+'</div>':'<span style="opacity:.6">Sin asignar</span>')+'</div></div>'+
+          (esCruce(b)?'':'<div><div class="d-lbl">Tipo de pago</div><div class="d-val">'+tipoPagoTxt(b)+'</div></div>')+
           cellsHtml+
         '</div>'+
         (thumbs?'<div class="oper-thumbs">'+thumbs+'</div>':'')+
@@ -3511,7 +3606,7 @@ function toDate(iso){var t=Date.parse(iso||'');return isNaN(t)?null:new Date(t-n
 function dateOnly(f){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(f||'');return m?new Date(Date.UTC(+m[1],+m[2]-1,+m[3])):null}
 var XL_COLS=[
   ['ID',7],['País',16],['Banco',22],['Moneda',9],['Monto',14],['Fecha de transferencia',14],['Representante',26],['Código',12],['Zona',8],['# de boleta',14],['Correo',28],
-  ['Enviada',17],['Estado en banco',18],['Confirmada en banco',17],['Operatoria de cartera',18],['Semáforo',12],['Horas (pendiente / hasta operar)',16],['Resumen de la gestión',44],['Operado por (correo)',28],['Fecha de operatoria',17],['Evidencia de operatoria',22],['Turno en la cola',12],['Correlativo',14],['Operado por (nombre)',30],['Asignada a (nombre)',30],['Asignada a (correo)',30],['Asignada por',30],['Fecha de asignación',17],['Tipo',14],['Tipo de corrección',22],['Código incorrecto',18],['Nombre (cód. incorrecto)',26],['Zona (cód. incorrecto)',14],['Motivo',44],['Solicitante',28]
+  ['Enviada',17],['Estado en banco',18],['Confirmada en banco',17],['Operatoria de cartera',18],['Semáforo',12],['Horas (pendiente / hasta operar)',16],['Resumen de la gestión',44],['Operado por (correo)',28],['Fecha de operatoria',17],['Evidencia de operatoria',22],['Turno en la cola',12],['Correlativo',14],['Operado por (nombre)',30],['Asignada a (nombre)',30],['Asignada a (correo)',30],['Asignada por',30],['Fecha de asignación',17],['Tipo',14],['Tipo de corrección',22],['Código incorrecto',18],['Nombre (cód. incorrecto)',26],['Zona (cód. incorrecto)',14],['Motivo',44],['Solicitante',28],['Tipo de pago',18],['Motivo de rechazo',28]
 ];
 var xlCorr={};
 function xlRow(b){
@@ -3524,7 +3619,7 @@ function xlRow(b){
     else{var t0=Date.parse(b.resolveISO||b.submitISO||''),t1=Date.parse(b.operAt||'');if(!isNaN(t0)&&!isNaN(t1)&&t1>=t0)horas=Math.round((t1-t0)/36e5*10)/10}
   }
   return [b.id,bi.pais,bi.banco,bi.cur,parseFloat(b.monto)||0,dateOnly(b.fecha),b.representante||'',b.codigo||'',b.zona||'',b.numero||'',b.correo||'',
-    toDate(b.submitISO),estBanco,toDate(b.resolveISO),oper,sem,horas,b.operNota||'',b.operPor||'',toDate(b.operAt),b.evidenciaUrl||'',(xlCorr[b.id]||null),marcaUnica(b.id),b.operNombre||'',b.asigNombre||'',b.asigA||'',b.asigPor||'',toDate(b.asigAt),esCruce(b)?'Cruce de pago':'Boleta',esCruce(b)?(b.cruceSub==='mala_aplicacion'?'Mala aplicación':'Cruce entre códigos'):'',b.codInc||'',b.repInc||'',b.zonaInc||'',b.motivo||'',b.solicitante||''];
+    toDate(b.submitISO),estBanco,toDate(b.resolveISO),oper,sem,horas,b.operNota||'',b.operPor||'',toDate(b.operAt),b.evidenciaUrl||'',(xlCorr[b.id]||null),marcaUnica(b.id),b.operNombre||'',b.asigNombre||'',b.asigA||'',b.asigPor||'',toDate(b.asigAt),esCruce(b)?'Cruce de pago':'Boleta',esCruce(b)?(b.cruceSub==='mala_aplicacion'?'Mala aplicación':'Cruce entre códigos'):'',b.codInc||'',b.repInc||'',b.zonaInc||'',b.motivo||'',b.solicitante||'',esCruce(b)?'—':tipoPagoTxt(b),(b.motivoRechazo==='referenciado_24h'?'Pago referenciado (se aplica en 24 h)':(b.motivoRechazo==='no_encontrada'?'No encontrada en banco':''))];
 }
 var XL_FILL={'En tiempo':'FFD1FAE5','Atención':'FFFEF3C7','Crítica':'FFFEE2E2','Operado':'FFD1FAE5','No operado':'FFFEE2E2','Por operar':'FFFEF3C7','Confirmada en banco':'FFD1FAE5','No encontrada':'FFFEE2E2','En proceso':'FFFEF3C7'};
 var XL_FONT={'En tiempo':'FF15803D','Atención':'FFB45309','Crítica':'FFDC2626','Operado':'FF15803D','No operado':'FFDC2626','Por operar':'FFB45309','Confirmada en banco':'FF15803D','No encontrada':'FFDC2626','En proceso':'FFB45309'};
@@ -3748,6 +3843,7 @@ function openEdit(id,e){
   document.getElementById('e-codigo').value=b.codigo||'';
   document.getElementById('e-zona').value=b.zona||'';
   document.getElementById('e-numero').value=b.numero||'';
+  document.getElementById('e-ref').value=b.referenciado===true?'true':(b.referenciado===false?'false':'');
   document.getElementById('e-correo').value=b.correo;
   document.getElementById('e-status').value=b.status;
   document.getElementById('edit-modal').classList.add('open');
@@ -3767,6 +3863,7 @@ function saveEdit(){
     codigo_representante:document.getElementById('e-codigo').value.trim(),
     zona:document.getElementById('e-zona').value.trim(),
     numero_boleta:document.getElementById('e-numero').value.trim(),
+    referenciado:document.getElementById('e-ref').value,
     correo:correo,status:document.getElementById('e-status').value};
   var c=adminCred();
   sb.rpc('admin_editar',{p_id:editingId,p_email:c.p_email,p_clave:c.p_clave,p_datos:datos}).then(function(res){
@@ -3933,6 +4030,10 @@ if(esAdmin())setAdminMode(true);
     <div class="field">
       <div class="label"># de boleta</div>
       <input type="text" id="e-numero">
+    </div>
+    <div class="field">
+      <div class="label">Tipo de pago</div>
+      <select id="e-ref"><option value="">Sin dato</option><option value="true">Referenciado</option><option value="false">No referenciado</option></select>
     </div>
     <div class="field">
       <div class="label">Correo</div>
