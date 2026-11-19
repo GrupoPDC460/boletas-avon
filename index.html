@@ -997,6 +997,23 @@ body.admin-on .oper-export .admin-only{visibility:visible}
 .ref-chip{display:inline-block;padding:1px 9px;border-radius:20px;background:#E3F6FC;border:1px solid #7DBFE6;color:#00216F;font-weight:800;font-size:.66rem;vertical-align:middle;white-space:nowrap}
 .ref-chip.no{background:#F1F3F8;border-color:#C9CEDB;color:#434A5D}
 .ref-aviso{margin:10px 0 8px;padding:10px 12px;border-radius:10px;background:#E3F6FC;border:1px solid #7DBFE6;color:#00216F;font-size:.78rem;line-height:1.45}
+
+/* ═══ Recibo de aplicación de pago ═══ */
+.rc-sec{margin:20px 0 6px;padding:18px;border:3px solid var(--pdc);border-radius:22px;background:#fff}
+.rc-title{font-size:1.2rem;font-weight:900;color:var(--pdc);margin-bottom:4px}
+.rc-sub{font-size:.8rem;color:var(--text-muted);margin-bottom:14px;line-height:1.45}
+.rc-canvas-wrap{display:flex;justify-content:center;padding:14px;background:var(--surface2);border-radius:14px}
+.rc-canvas-wrap canvas{width:100%;max-width:560px;height:auto;box-shadow:0 8px 24px rgba(0,33,111,.2);border-radius:4px;background:#fff}
+.rc-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px}
+.rc-btn{padding:12px 20px;border-radius:12px;border:2px solid var(--pdc);background:#fff;color:var(--pdc);font-family:var(--font);font-weight:900;font-size:.88rem;cursor:pointer;transition:all .15s}
+.rc-btn:hover{background:rgba(0,33,111,.08)}
+.rc-btn.main{background:var(--avon);border-color:var(--avon);color:#fff}
+.rc-btn.main:hover{background:var(--avon-deep);border-color:var(--avon-deep)}
+.rc-ok,.rc-bad{margin-bottom:6px;padding:14px 18px;border-radius:14px;font-size:.88rem;line-height:1.5}
+.rc-ok{background:var(--success-bg);border:2px solid var(--success-border);color:var(--success)}
+.rc-bad{background:var(--danger-bg);border:2px solid var(--danger-border);color:var(--danger)}
+
+.modo-verif .form-seg,.modo-verif .trk-form,.modo-verif .trk-hint,.modo-verif #trk-recientes{display:none!important}
 </style>
 </head>
 <body>
@@ -2564,6 +2581,173 @@ function trkDetalle(m,c){
     trkRender(d);
   });
 }
+/* ─── RECIBO DE APLICACIÓN DE PAGO (descargable y verificable) ─── */
+var reciboActual=null;
+function reciboVerifUrl(d){return SHARE_BASE+'?solo=form&r='+encodeURIComponent(d.marca)+'.'+d.verificacion}
+function reciboFmtVerif(v){return v.replace(/(.{4})(?=.)/g,'$1-')}
+function reciboMonto(d){return d.simbolo+' '+Number(d.monto).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function reciboFecha(iso,pais){
+  try{return new Date(iso).toLocaleString('es',{dateStyle:'long',timeStyle:'short',timeZone:TZ_PAIS[pais]||'America/Guatemala'})}
+  catch(e){return fmtTime(iso)}
+}
+function reciboImg(src){return new Promise(function(ok){var i=new Image();i.onload=function(){ok(i)};i.onerror=function(){ok(null)};i.src=src})}
+function reciboFuentes(){
+  if(!document.fonts||!document.fonts.load)return Promise.resolve();
+  return Promise.all(['300','500','700','900'].map(function(w){return document.fonts.load(w+' 20px "Museo Sans Rounded"')})).catch(function(){});
+}
+/* Dibuja el recibo en un canvas tamaño carta (1275×1650) con la identidad de PDC */
+function reciboDibujar(d){
+  return Promise.all([reciboFuentes(),reciboImg('grupo-pdc-blanco.png')]).then(function(r){
+    var logo=r[1],S=1275/816,cv=document.createElement('canvas');cv.width=1275;cv.height=1650;
+    var c=cv.getContext('2d');c.scale(S,S);
+    var NAVY='#001b72',CEL='#45c0e8',ORA='#ff5100',GRIS='#434a5d',NIE='#eef0f5',VERDE='#15803d',F='"Museo Sans Rounded",system-ui,sans-serif';
+    var cruce=(d.tipo==='cruce');
+    function T(t,x,y,o){o=o||{};c.save();c.font=(o.w||500)+' '+(o.s||14)+'px '+(o.f||F);c.fillStyle=o.c||NAVY;c.textAlign=o.a||'left';c.textBaseline='alphabetic';
+      if('letterSpacing' in c)c.letterSpacing=(o.ls||0)+'px';
+      if(o.rot){c.translate(x,y);c.rotate(o.rot);c.fillText(t,0,0)}else c.fillText(t,x,y);c.restore()}
+    function fit(t,maxW,w,s0){var s1=s0;c.save();while(s1>9){c.font=w+' '+s1+'px '+F;if(c.measureText(t).width<=maxW)break;s1--}c.restore();return s1}
+    function RR(x,y,w,h,rad){c.beginPath();c.moveTo(x+rad,y);c.arcTo(x+w,y,x+w,y+h,rad);c.arcTo(x+w,y+h,x,y+h,rad);c.arcTo(x,y+h,x,y,rad);c.arcTo(x,y,x+w,y,rad);c.closePath()}
+    function wrap(t,x,y,maxW,lh,o){var words=t.split(' '),line='',yy=y;c.save();c.font=(o.w||500)+' '+o.s+'px '+F;
+      words.forEach(function(wd){var test=line?line+' '+wd:wd;if(c.measureText(test).width>maxW&&line){T(line,x,yy,o);line=wd;yy+=lh}else line=test});
+      T(line,x,yy,o);c.restore();return yy}
+    c.fillStyle='#fff';c.fillRect(0,0,816,1056);
+    // encabezado
+    c.fillStyle=NAVY;c.fillRect(0,0,816,150);c.fillStyle=ORA;c.fillRect(0,150,816,6);
+    if(logo){var lw=72*logo.width/logo.height;c.drawImage(logo,48,36,lw,72)}
+    T('CENTRO DE COBROS',768,52,{s:13,w:900,c:CEL,a:'right',ls:2});
+    T(cruce?'CONSTANCIA DE CRUCE DE PAGO APLICADO':'RECIBO DE APLICACIÓN DE PAGO',768,86,{s:cruce?21:25,w:900,c:'#fff',a:'right'});
+    T('Avon CARD · Grupo PDC',768,110,{s:12,w:500,c:'#c4d2f1',a:'right',ls:1});
+    // monto
+    T(cruce?'MONTO CRUZADO':'MONTO APLICADO',48,200,{s:12,w:900,c:'#0b6e92',ls:2});
+    var mt=reciboMonto(d);T(mt,48,262,{s:fit(mt,500,900,58),w:900});
+    T('CORRELATIVO',48,292,{s:11,w:900,c:GRIS,ls:2});T(d.marca,150,292,{s:19,w:900,f:'ui-monospace,Menlo,Consolas,monospace'});
+    // sello
+    c.save();c.translate(690,236);c.rotate(-0.12);RR(-96,-40,192,80,14);c.fillStyle='rgba(21,128,61,.07)';c.fill();c.lineWidth=4;c.strokeStyle=VERDE;c.stroke();
+    T(cruce?'CRUCE APLICADO':'PAGO APLICADO',0,-6,{s:19,w:900,c:VERDE,a:'center'});T(cruce?'EN EL SISTEMA':'SALDO REBAJADO',0,22,{s:16,w:900,c:VERDE,a:'center',ls:1});c.restore();
+    // detalle
+    var filas=cruce?[
+      ['TIPO',d.subtipo==='mala_aplicacion'?'Mala aplicación':'Cruce entre códigos'],['CÓDIGO INCORRECTO',d.codigo_incorrecto||'—'],['CÓDIGO CORRECTO',d.codigo_correcto||'—'],
+      ['REPRESENTANTE (COR.)',d.representante||'—'],['BANCO · PAÍS',d.banco+' · '+d.pais],['# DE BOLETA',d.numero_boleta||'—'],['FECHA DE LA BOLETA',d.fecha],
+      ['APLICADO EL',reciboFecha(d.operado_at,d.pais)],['ESTADO','Cruce aplicado en el sistema']
+    ]:[
+      ['REPRESENTANTE',d.representante||'—'],['CÓDIGO · ZONA',(d.codigo||'—')+(d.zona?' · Zona '+d.zona:'')],['BANCO · PAÍS',d.banco+' · '+d.pais],
+      ['TIPO DE PAGO',d.referenciado===true?'Pago referenciado':(d.referenciado===false?'Pago no referenciado':'—')],['# DE BOLETA',d.numero_boleta||'—'],
+      ['FECHA DEL PAGO',d.fecha],['APLICADO EL',reciboFecha(d.operado_at,d.pais)],['ESTADO','Pago aplicado · saldo rebajado en el sistema']
+    ];
+    var y0=322,rh=34;
+    filas.forEach(function(f,i){var y=y0+i*rh;
+      c.fillStyle='#e3e7f1';c.fillRect(48,y+rh-1,720,1);
+      T(f[0],48,y+22,{s:11,w:900,c:GRIS,ls:1.5});
+      var v=String(f[1]);T(v,250,y+23,{s:fit(v,518,700,17),w:700});
+    });
+    // certificación
+    var yc=y0+filas.length*rh+18;
+    RR(48,yc,720,70,14);c.fillStyle=NIE;c.fill();
+    wrap(cruce?'Se certifica que este pago fue cruzado del código incorrecto al código correcto y aplicado en el sistema por Operatoria de cartera.'
+              :'Se certifica que este pago fue procesado por Operatoria de cartera y que su monto fue rebajado del saldo pendiente de la representante en el sistema.',66,yc+28,684,20,{s:14,w:500,c:GRIS});
+    // firma
+    var ys=yc+98;
+    T('FIRMA DE OPERATORIA DE CARTERA',48,ys,{s:11,w:900,c:'#0b6e92',ls:1.5});
+    var nom=d.operado_nombre||'—',fs=fit(nom,330,900,40);
+    T(nom,60,ys+48,{s:fs,w:900,c:NAVY,rot:-0.04,f:'"Museo Sans Rounded",system-ui,sans-serif'});
+    c.save();c.strokeStyle=NAVY;c.lineWidth=2;c.beginPath();c.moveTo(48,ys+62);c.quadraticCurveTo(200,ys+52,372,ys+62);c.stroke();c.restore();
+    T(nom,48,ys+82,{s:15,w:700});T('Operatoria de cartera · Grupo PDC',48,ys+100,{s:13,w:500,c:GRIS});
+    T('Firmado electrónicamente el '+reciboFecha(d.operado_at,d.pais),48,ys+118,{s:12,w:500,c:GRIS});
+    // verificación
+    var yv=ys+142,url=reciboVerifUrl(d);
+    RR(48,yv,720,118,16);c.lineWidth=2.5;c.strokeStyle=NAVY;c.stroke();
+    var qr=qrcode(0,'M');qr.addData(url);qr.make();var n=qr.getModuleCount(),qs=96,cell=qs/(n+6);
+    c.fillStyle='#fff';c.fillRect(60,yv+11,qs,qs);c.fillStyle=NAVY;
+    for(var rr=0;rr<n;rr++)for(var cc=0;cc<n;cc++)if(qr.isDark(rr,cc))c.fillRect(60+(cc+3)*cell,yv+11+(rr+3)*cell,cell+0.3,cell+0.3);
+    T('VERIFICA ESTE RECIBO',176,yv+30,{s:12,w:900,c:'#0b6e92',ls:2});
+    wrap('Escanea el código con tu celular: se abre una página que confirma en el sistema si este recibo es auténtico. Código de verificación:',176,yv+50,570,17,{s:12,w:500,c:GRIS});
+    T(reciboFmtVerif(d.verificacion),176,yv+98,{s:25,w:900,f:'ui-monospace,Menlo,Consolas,monospace'});
+    // pie
+    c.fillStyle=NAVY;c.fillRect(0,1024,816,32);
+    T('Documento generado por el Centro de Cobros · Grupo PDC · Avon CARD',408,1044,{s:12,w:500,c:'#c4d2f1',a:'center'});
+    return cv;
+  });
+}
+/* PDF de una página tamaño carta con la imagen del recibo (sin librerías) */
+function reciboPdf(cv){
+  var b64=cv.toDataURL('image/jpeg',0.93).split(',')[1],bin=atob(b64),jpg=new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++)jpg[i]=bin.charCodeAt(i);
+  var enc=new TextEncoder(),parts=[],offs=[],pos=0;
+  function add(x){var u=typeof x==='string'?enc.encode(x):x;parts.push(u);pos+=u.length}
+  function obj(n,body){offs[n]=pos;add(n+' 0 obj\n'+body+'\nendobj\n')}
+  add('%PDF-1.4\n');add(new Uint8Array([37,226,227,207,211,10]));
+  obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
+  obj(2,'<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+  obj(3,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>');
+  var cs='q 612 0 0 792 0 0 cm /Im0 Do Q';obj(4,'<< /Length '+cs.length+' >>\nstream\n'+cs+'\nendstream');
+  offs[5]=pos;add('5 0 obj\n<< /Type /XObject /Subtype /Image /Width '+cv.width+' /Height '+cv.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+jpg.length+' >>\nstream\n');
+  add(jpg);add('\nendstream\nendobj\n');
+  var xr=pos,x='xref\n0 6\n0000000000 65535 f \n';
+  for(var n=1;n<=5;n++)x+=String(offs[n]).padStart(10,'0')+' 00000 n \n';
+  add(x+'trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n'+xr+'\n%%EOF');
+  return new Blob(parts,{type:'application/pdf'});
+}
+function reciboBajar(blob,nombre){
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nombre;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(a.href)},4000);
+}
+function reciboNombre(ext){return 'Recibo-'+(reciboActual?reciboActual.d.marca:'pago')+'.'+ext}
+function reciboDescargar(tipo){
+  if(!reciboActual)return;
+  var cv=reciboActual.cv;
+  if(tipo==='pdf'){reciboBajar(reciboPdf(cv),reciboNombre('pdf'));toast('success','⬇️ Recibo descargado','Quedó guardado como PDF.')}
+  else cv.toBlob(function(b){reciboBajar(b,reciboNombre('png'));toast('success','🖼️ Imagen guardada','Puedes enviarla por WhatsApp.')},'image/png');
+}
+function reciboCompartir(){
+  if(!reciboActual)return;
+  var file=new File([reciboPdf(reciboActual.cv)],reciboNombre('pdf'),{type:'application/pdf'});
+  navigator.share({files:[file],title:'Recibo de pago aplicado '+reciboActual.d.marca,text:'Recibo de pago aplicado '+reciboActual.d.marca}).catch(function(){});
+}
+function reciboHtml(titulo){
+  return '<div class="rc-sec"><div class="rc-title">'+titulo+'</div>'+
+    '<div class="rc-sub">Comprueba que el pago fue aplicado y el saldo rebajado. Descárgalo o compártelo cuando lo necesites, por ejemplo con el transportista.</div>'+
+    '<div class="rc-canvas-wrap"><canvas id="rc-canvas"></canvas></div>'+
+    '<div class="rc-actions"><button class="rc-btn main" onclick="reciboDescargar(\'pdf\')">⬇️ Descargar PDF</button>'+
+    '<button class="rc-btn" onclick="reciboDescargar(\'png\')">🖼️ Guardar imagen</button>'+
+    '<button class="rc-btn" id="rc-share" onclick="reciboCompartir()" style="display:none">📤 Compartir</button></div></div>';
+}
+function reciboPintar(d){
+  reciboDibujar(d).then(function(cv){
+    reciboActual={d:d,cv:cv};
+    var dst=document.getElementById('rc-canvas');if(!dst)return;
+    dst.width=cv.width;dst.height=cv.height;dst.getContext('2d').drawImage(cv,0,0);
+    try{var f=new File(['x'],'x.pdf',{type:'application/pdf'});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[f]}))document.getElementById('rc-share').style.display=''}catch(e){}
+  });
+}
+/* Recibo dentro del rastreo: solo cuando Operatoria ya aplicó el pago */
+function reciboInsertar(d){
+  var ref=document.querySelector('#trk-result .trk-act');if(!ref||document.getElementById('rc-canvas'))return;
+  ref.insertAdjacentHTML('beforebegin',reciboHtml(d.tipo==='cruce'?'🧾 Constancia de cruce aplicado':'🧾 Recibo de pago aplicado'));
+  reciboPintar(d);
+}
+/* Pantalla de verificación: se abre con el QR del recibo (?r=CC-00212.CÓDIGO) */
+function verificarInit(){
+  var r=new URLSearchParams(location.search).get('r');if(!r)return;
+  var i=r.lastIndexOf('.');if(i<1)return;
+  var marca=r.slice(0,i),cod=r.slice(i+1);
+  document.body.classList.add('modo-verif');
+  setFormSec('track');
+  var res=document.getElementById('trk-result');
+  res.innerHTML='<div class="trk-nota trk-nota-info">Verificando el recibo '+ea(marca)+'...</div>';
+  document.getElementById('page-title').textContent='✅ Verificación de recibo';
+  document.getElementById('page-sub').textContent='Comprueba que el recibo coincide con el sistema';
+  sb.rpc('verificar_recibo',{p_marca:marca,p_verif:cod}).then(function(x){
+    var d=(x&&x.data)||{};
+    if(x&&x.error||!d.ok){
+      res.innerHTML='<div class="rc-bad"><strong>❌ No se pudo verificar este recibo.</strong><br>'+(d.error==='DEMASIADOS_INTENTOS'?'Hay demasiados intentos. Espera unos minutos e inténtalo de nuevo.':'El correlativo o el código no coinciden con ningún pago aplicado. Puede haber sido modificado: no lo aceptes como comprobante.')+'</div>';
+      return;
+    }
+    res.innerHTML='<div class="rc-ok"><strong>✅ Recibo auténtico.</strong><br>Estos datos coinciden con el sistema del Centro de Cobros: el pago '+ea(d.marca)+' fue aplicado por '+ea(d.operado_nombre||'Operatoria de cartera')+' el '+ea(reciboFecha(d.operado_at,d.pais))+'.</div>'+reciboHtml(d.tipo==='cruce'?'🧾 Constancia de cruce aplicado':'🧾 Recibo de pago aplicado');
+    reciboPintar(d);
+  });
+}
+
 function trkEstadoTxt(d){
   if(d.tipo==='cruce'){
     if(d.operado===true)return 'CRUCE APLICADO · PROCESO COMPLETO';
@@ -2657,6 +2841,7 @@ function trkRender(d){
     if(op!==null&&d.operado_at)o.filas.push([op?'OPERADA':'REVISADA POR CARTERA',fmtTime(d.operado_at)]);
   }
   trkPintar(o);
+  if(d.operado===true&&d.verificacion)reciboInsertar(d);
 }
 
 /* ─── DASHBOARD DE OPERATORIA: filtros y gráficas con movimiento ─── */
@@ -3925,6 +4110,7 @@ if(SOLO==='form'){setSS('ok','Listo para enviar')}else{load()}
 
 initPaises();
 initCruce();
+verificarInit();
 if(esAdmin())setAdminMode(true);
 (function(){var h=(location.hash||'').replace('#','');var t=SOLO||(PAGES[h]?h:null);if(t)switchTab(t)})();
 </script>
