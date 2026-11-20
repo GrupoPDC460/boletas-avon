@@ -1014,6 +1014,10 @@ body.admin-on .oper-export .admin-only{visibility:visible}
 .rc-bad{background:var(--danger-bg);border:2px solid var(--danger-border);color:var(--danger)}
 
 .modo-verif .form-seg,.modo-verif .trk-form,.modo-verif .trk-hint,.modo-verif #trk-recientes{display:none!important}
+
+.img-error{display:inline-block;padding:10px 12px;border-radius:10px;background:#FFF7ED;border:1px solid #F59E0B;color:#7C2D12;font-size:.78rem;line-height:1.4}
+.img-error a{color:var(--pdc);font-weight:800}
+.zoom-hint a{color:var(--pdc);font-weight:700}
 </style>
 </head>
 <body>
@@ -1584,6 +1588,14 @@ var prevPending=0,prevConfirmed=0,realtimeReady=false;
 var adminMode=false,editingId=null;
 
 /* ─── HELPERS DE MAPEO (fila DB <-> objeto UI) ── */
+/* Si una imagen no carga: se reintenta una vez saltando la copia guardada del navegador; si vuelve a fallar, se ofrece abrirla en otra pestaña */
+function imgFalla(el){
+  var u=el.getAttribute('src')||'',base=u.split('?')[0];
+  if(!el.dataset.reintento){el.dataset.reintento='1';el.src=base+'?r='+Date.now();return}
+  var box=document.createElement('div');box.className='img-error';
+  box.innerHTML='⚠️ No se pudo mostrar la imagen. <a href="'+base+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Abrir en otra pestaña</a>';
+  el.replaceWith(box);
+}
 function pubUrl(path){
   if(!path)return null;
   return SB_URL+'/storage/v1/object/public/'+BUCKET+'/'+path;
@@ -1684,14 +1696,19 @@ function nowHM(){return new Date().toLocaleTimeString('es',{hour:'2-digit',minut
 function subscribeRealtime(){
   realtimeReady=true;
   sb.channel('boletas-rt')
-    .on('postgres_changes',{event:'*',schema:'public',table:'boletas'},function(){refreshBoletas()})
+    .on('postgres_changes',{event:'*',schema:'public',table:'boletas'},function(){pedirRefresh()})
     .on('postgres_changes',{event:'*',schema:'public',table:'notifs'},function(){refreshNotifs()})
     .subscribe();
 }
+var _rawBoletas='',_rtTimer=null;
+function pedirRefresh(){clearTimeout(_rtTimer);_rtTimer=setTimeout(refreshBoletas,700)}
 function refreshBoletas(){
   if(SOLO==='form')return;
   sb.from('boletas').select('*').order('id',{ascending:false}).then(function(res){
     if(res.error){console.error(res.error);return}
+    var raw=JSON.stringify(res.data||[]);
+    if(raw===_rawBoletas&&boletas.length){setSS('ok','Actualizado '+nowHM());return}
+    _rawBoletas=raw;
     var fresh=(res.data||[]).map(rowToBoleta);
     var nP=fresh.filter(function(b){return b.status==='pending'}).length;
     var nC=fresh.filter(function(b){return b.status==='confirmed'}).length;
@@ -2037,7 +2054,7 @@ function renderPanel(){
     var isExp=expandedId===b.id;
 
     var capHtml=b.capturaUrl
-      ?'<div class="capture-preview"><img src="'+b.capturaUrl+'" alt="captura" onclick="openLbUrl(\''+b.capturaUrl+'\',event)"><span>Captura de confirmación adjunta ✓ — toca la imagen para ampliar</span></div>'
+      ?'<div class="capture-preview"><img loading="lazy" decoding="async" onerror="imgFalla(this)" src="'+b.capturaUrl+'" alt="captura" onclick="openLbUrl(\''+b.capturaUrl+'\',event)"><span>Captura de confirmación adjunta ✓ — toca la imagen para ampliar</span></div>'
       :'';
 
     var actions='';
@@ -2069,9 +2086,9 @@ function renderPanel(){
       :'';
 
     var imgArea=b.dataUrl
-      ?'<img src="'+b.dataUrl+'" alt="Comprobante" onclick="openLb(\''+b.id+'\',event)">'
+      ?'<img loading="lazy" decoding="async" onerror="imgFalla(this)" src="'+b.dataUrl+'" alt="Comprobante" onclick="openLb(\''+b.id+'\',event)">'
       :'<div class="no-img">📄 '+(b.fileName||'archivo')+'</div>';
-    var imgHint=b.dataUrl?'<div class="zoom-hint">🔍 Toca el comprobante para ampliarlo</div>':'';
+    var imgHint=b.dataUrl?'<div class="zoom-hint">🔍 Toca el comprobante para ampliarlo · <a href="'+b.dataUrl+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗ Abrir en otra pestaña</a></div>':'';
 
     return '<div class="boleta-card'+(isExp?' expanded':'')+'" id="bc-'+b.id+'" onclick="toggle('+b.id+',event)">'+
       '<div class="boleta-header">'+
@@ -3470,8 +3487,8 @@ function renderOper(){
     var num=corr[b.id];
     var who=b.operPor||savedName();
     var huella=huellaHtml(b);
-    var thumbs=(b.dataUrl?'<img src="'+b.dataUrl+'" alt="Comprobante" onclick="openLbUrl(\''+b.dataUrl+'\',event)">':'')+
-               (b.capturaUrl?'<img src="'+b.capturaUrl+'" alt="Captura" onclick="openLbUrl(\''+b.capturaUrl+'\',event)">':'');
+    var thumbs=(b.dataUrl?'<img loading="lazy" decoding="async" onerror="imgFalla(this)" src="'+b.dataUrl+'" alt="Comprobante" onclick="openLbUrl(\''+b.dataUrl+'\',event)">':'')+
+               (b.capturaUrl?'<img loading="lazy" decoding="async" onerror="imgFalla(this)" src="'+b.capturaUrl+'" alt="Captura" onclick="openLbUrl(\''+b.capturaUrl+'\',event)">':'');
     var semCls=(b.operado===null)?' oc-'+semOf(b).k:'';
     var cerrada=(b.operado===true);
     var cerradaHtml='<div class="oper-form oper-cerrada"><div class="oper-title">Operatoria de cartera</div>'+
@@ -3532,7 +3549,7 @@ function renderOper(){
         '</div>'+
         (thumbs?'<div class="oper-thumbs">'+thumbs+'</div>':'')+
 
-        (b.evidenciaUrl?'<div class="oper-evid-badge">🧾 Evidencia de operatoria <img src="'+b.evidenciaUrl+'" alt="Evidencia" onclick="openLbUrl(\''+b.evidenciaUrl+'\',event)"></div>':'')+
+        (b.evidenciaUrl?'<div class="oper-evid-badge">🧾 Evidencia de operatoria <img loading="lazy" decoding="async" onerror="imgFalla(this)" src="'+b.evidenciaUrl+'" alt="Evidencia" onclick="openLbUrl(\''+b.evidenciaUrl+'\',event)"></div>':'')+
         (cerrada?cerradaHtml:(!puede?sinAccesoHtml:('<div class="oper-form">'+
           '<div class="oper-title">Operatoria de cartera</div>'+
           '<div class="oper-choice">'+
@@ -3542,7 +3559,7 @@ function renderOper(){
           '<div class="field"><div class="label">'+(esCruce(b)?'Corrección realizada <span class="opt-tag">Obligatorio si no se pudo aplicar</span>':'Resumen de la gestión <span class="opt-tag">Obligatorio si no fue operado</span>')+'</div>'+
             '<textarea id="oper-nota-'+b.id+'" rows="3" placeholder="'+(esCruce(b)?'Qué corrección se hizo (de qué código a cuál), o por qué no se pudo':'Qué se hizo en cartera, o el motivo si no se operó')+'">'+ea(b.operNota||'')+'</textarea></div>'+
           '<div class="field"><div class="label">Evidencia de lo operado (imagen) <span class="opt-tag">Opcional</span></div>'+
-            (b.evidenciaUrl?'<div class="oper-evid-actual"><img src="'+b.evidenciaUrl+'" alt="Evidencia" onclick="openLbUrl(\''+b.evidenciaUrl+'\',event)"><span>Evidencia cargada ✓ — toca la imagen para ampliar. Si subes otra, se reemplaza.</span></div>':'')+
+            (b.evidenciaUrl?'<div class="oper-evid-actual"><img loading="lazy" decoding="async" onerror="imgFalla(this)" src="'+b.evidenciaUrl+'" alt="Evidencia" onclick="openLbUrl(\''+b.evidenciaUrl+'\',event)"><span>Evidencia cargada ✓ — toca la imagen para ampliar. Si subes otra, se reemplaza.</span></div>':'')+
             '<div class="oper-upload-row"><label class="oper-upload"><input type="file" accept="image/*" onchange="operFile('+b.id+',this)">📎 '+(b.evidenciaUrl?'Reemplazar imagen':'Adjuntar imagen')+'</label>'+
             '<button type="button" class="oper-upload oper-paste" onclick="operPaste('+b.id+')">📋 Pegar captura</button></div>'+
             '<div class="paste-hint" style="margin-top:6px">También puedes pegar la captura con <strong>Ctrl+V</strong> sin guardarla antes.</div>'+
